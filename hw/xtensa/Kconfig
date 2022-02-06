@@ -22,6 +22,8 @@ config XTENSA_ESP32
     select DWC_SDMMC
     select TMP105
     select LED
+    select SPLIT_IRQ
+
 
 config XTENSA_ESP32S3
     bool
