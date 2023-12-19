@@ -157,7 +157,8 @@ system_ss.add(when: 'CONFIG_XTENSA_ESP32', if_true: files(
   'esp32_phya.c',
   'esp32_wifi_ap.c',
   'esp32_wlan_packet.c',
-  'servo.c'
+  'servo.c',
+  'esp32_mcpwm.c'
 ))
 system_ss.add(when: 'CONFIG_XTENSA_ESP32S3', if_true: files(
   'esp32s3_cache.c',
