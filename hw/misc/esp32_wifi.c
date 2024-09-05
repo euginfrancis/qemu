@@ -85,7 +85,7 @@ static int match_mac_address(uint8_t *a1,uint8_t *a2) {
 // frame from ap to esp32
 void Esp32_sendFrame(Esp32WifiState *s, mac80211_frame *frame,int length, int signal_strength) {    
     if(s->dma_inlink_address==0) return;
-    uint8_t header[28+length];
+    uint8_t *header=malloc(28+length);
     wifi_pkt_rx_ctrl_t *pkt=(wifi_pkt_rx_ctrl_t *)header;
     *pkt=(wifi_pkt_rx_ctrl_t){
         .rssi=(signal_strength+(rand()%10)+96),
@@ -120,6 +120,7 @@ void Esp32_sendFrame(Esp32WifiState *s, mac80211_frame *frame,int length, int si
     address_space_write(&address_space_memory, s->dma_inlink_address, MEMTXATTRS_UNSPECIFIED,&item,4);
     s->dma_inlink_address=item.next;
     set_interrupt(s,0x1000024);
+    free(header);
 }
 
 static const MemoryRegionOps esp32_wifi_ops = {
