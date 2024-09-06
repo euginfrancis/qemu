@@ -23,6 +23,7 @@ echo DBG
     --disable-opengl \
     --enable-vte \
     --enable-gtk \
+    --enable-pixman \
     --enable-stack-protector \
     --extra-cflags=-Werror \
     --prefix=${PWD}/install/qemu \
