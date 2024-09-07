@@ -21,7 +21,6 @@ echo DBG
     --enable-gtk \
     --enable-pixman \
     --disable-sdl \
-    --static \
     --enable-slirp \
     --enable-stack-protector \
     --extra-cflags=-Werror \
