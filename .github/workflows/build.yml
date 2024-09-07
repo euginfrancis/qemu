@@ -59,7 +59,7 @@ jobs:
             # Used minimal build deps
             container: ubuntu:20.04
             shell: bash -e {0}
-            run_prerequisites: "./.github/workflows/scripts/prerequisites-old.sh"
+            run_prerequisites: "./.github/workflows/scripts/prerequisites-native.sh"
             run_configure: "./.github/workflows/scripts/configure-native.sh"
 
           - platform: aarch64-linux-gnu
