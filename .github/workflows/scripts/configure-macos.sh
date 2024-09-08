@@ -18,6 +18,7 @@ echo DBG
     --datadir=share/qemu \
     --enable-fdt=internal \
     --enable-gcrypt \
+    --disable-gtk \
     --disable-sdl \
     --enable-slirp \
     --enable-stack-protector \
