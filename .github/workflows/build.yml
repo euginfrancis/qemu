@@ -50,7 +50,7 @@ jobs:
       fail-fast: false
       matrix:
         # Naming MinGW platforms: https://sourceforge.net/p/mingw-w64/wiki2/TypeTriplets/
-        platform: [x86_64-linux-gnu, x86_64-w64-mingw32, x86_64-apple-darwin]
+        platform: [x86_64-linux-gnu, x86_64-w64-mingw32, x86_64-apple-darwin, aarch64-apple-darwin]
         target: [xtensa-softmmu]
 
         include:
@@ -81,11 +81,11 @@ jobs:
             run_prerequisites: "./.github/workflows/scripts/prerequisites-macos.sh"
             run_configure: "./.github/workflows/scripts/configure-macos.sh"
 
-#          - platform: aarch64-apple-darwin
-#            runs_on: macos-13-xlarge
-#            shell: bash -e {0}
-#            run_prerequisites: "./.github/workflows/scripts/prerequisites-macos.sh"
-#            run_configure: "./.github/workflows/scripts/configure-macos.sh"
+          - platform: aarch64-apple-darwin
+            runs_on: macos-14-arm64
+            shell: bash -e {0}
+            run_prerequisites: "./.github/workflows/scripts/prerequisites-macos.sh"
+            run_configure: "./.github/workflows/scripts/configure-macos.sh"
 
     runs-on: ${{ matrix.runs_on }}
     container: ${{ matrix.container }}
