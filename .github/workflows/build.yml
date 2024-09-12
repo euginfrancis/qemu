@@ -165,6 +165,8 @@ jobs:
           find $PWD/install/qemu/share/qemu/ -maxdepth 1 -mindepth 1 -not -name 'esp32-v3*.bin' -exec rm -rfv {} \;
           export DIST_DIR=${PWD}/dist
           mkdir -p ${DIST_DIR}
+          cd $PWD/install/bin
+          strip qemu-system-xtensa
           cd $PWD/install
           ARCHIVE_NAME=${PROJECT_NAME}-${TARGET}-${VERSION}-${PLATFORM}.tar.xz
           tar -cJvf ${DIST_DIR}/${ARCHIVE_NAME} qemu > ${DIST_DIR}/dist-filelist-${TARGET}-${PLATFORM}.txt 2>&1
