@@ -23,6 +23,7 @@ echo DBG
     --disable-opengl \
     --enable-vte \
     --enable-gtk \
+    --enable-strip \
     --enable-pixman \
     --enable-stack-protector \
     --extra-cflags=-Werror \

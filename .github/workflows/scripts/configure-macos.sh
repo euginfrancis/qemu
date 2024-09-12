@@ -20,6 +20,7 @@ echo DBG
     --enable-gcrypt \
     --disable-gtk \
     --disable-sdl \
+    --enable-strip \
     --enable-slirp \
     --enable-stack-protector \
     --prefix=$PWD/install/qemu \
@@ -27,4 +28,5 @@ echo DBG
     --target-list=${TARGET} \
     --with-pkgversion="${VERSION}" \
     --with-suffix="" \
+    --without-default-features \
 || { cat meson-logs/meson-log.txt && false; }

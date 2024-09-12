@@ -133,7 +133,7 @@ jobs:
         run: |
           ninja -C build install
 
-      - name: Package Darwin Libs (${{ matrix.target }} @ ${{ matrix.platform }})
+      - name: Package x86 Darwin Libs (${{ matrix.target }} @ ${{ matrix.platform }})
         if : ${{ matrix.platform == 'x86_64-apple-darwin'}}
         run: |
           cd $PWD/install/qemu/bin
@@ -143,8 +143,9 @@ jobs:
           ls -l
           otool -L *.dylib | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .  || true
           otool -L *.dylib | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx . || true
+          strip qemu-system-xtensa
 
-      - name: Package Other Darwin Libs (${{ matrix.target }} @ ${{ matrix.platform }})
+      - name: Package ARM Darwin Libs (${{ matrix.target }} @ ${{ matrix.platform }})
         if : ${{ matrix.platform == 'aarch64-apple-darwin'}}
         run: |
           cd $PWD/install/qemu/bin
@@ -154,6 +155,7 @@ jobs:
           ls -l
           otool -L *.dylib | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx . || true
           otool -L *.dylib | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx . || true
+          strip qemu-system-xtensa
 
       - name: Package (${{ matrix.target }} @ ${{ matrix.platform }})
         env:
@@ -165,9 +167,7 @@ jobs:
           find $PWD/install/qemu/share/qemu/ -maxdepth 1 -mindepth 1 -not -name 'esp32-v3*.bin' -exec rm -rfv {} \;
           export DIST_DIR=${PWD}/dist
           mkdir -p ${DIST_DIR}
-          cd $PWD/install/qemu/bin
-          strip qemu-system-xtensa
-          cd ../..
+          cd $PWD/install
           ARCHIVE_NAME=${PROJECT_NAME}-${TARGET}-${VERSION}-${PLATFORM}.tar.xz
           tar -cJvf ${DIST_DIR}/${ARCHIVE_NAME} qemu > ${DIST_DIR}/dist-filelist-${TARGET}-${PLATFORM}.txt 2>&1
           echo "${ARCHIVE_NAME}" > ${DIST_DIR}/file_${PLATFORM}_${TARGET}

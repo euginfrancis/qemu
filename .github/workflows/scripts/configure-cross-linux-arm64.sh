@@ -16,8 +16,13 @@ echo DBG
     --cross-prefix=aarch64-linux-gnu- \
     --datadir=share/qemu \
     --enable-gcrypt \
-    --enable-sdl \
+    --disable-sdl \
     --enable-slirp \
+    --enable-strip \
+    --enable-vte \
+    --enable-gtk \
+    --disable-opengl \
+    --enable-pixman \
     --enable-stack-protector \
     --extra-cflags=-Werror \
     --prefix=${PWD}/install/qemu \
