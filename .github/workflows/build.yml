@@ -167,7 +167,7 @@ jobs:
           mkdir -p ${DIST_DIR}
           cd $PWD/install/qemu/bin
           strip qemu-system-xtensa
-          cd $PWD/install
+          cd ../..
           ARCHIVE_NAME=${PROJECT_NAME}-${TARGET}-${VERSION}-${PLATFORM}.tar.xz
           tar -cJvf ${DIST_DIR}/${ARCHIVE_NAME} qemu > ${DIST_DIR}/dist-filelist-${TARGET}-${PLATFORM}.txt 2>&1
           echo "${ARCHIVE_NAME}" > ${DIST_DIR}/file_${PLATFORM}_${TARGET}
