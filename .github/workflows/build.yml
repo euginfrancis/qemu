@@ -140,7 +140,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
           TARGET: ${{ matrix.target }}
         run: |
-          find $PWD/install/qemu/share/qemu/ -maxdepth 1 -mindepth 1 -not -name 'esp*.bin' -exec rm -rfv {} \;
+          find $PWD/install/qemu/share/qemu/ -maxdepth 1 -mindepth 1 -not -name 'esp32-v3*.bin' -exec rm -rfv {} \;
           export DIST_DIR=${PWD}/dist
           mkdir -p ${DIST_DIR}
           cd $PWD/install
