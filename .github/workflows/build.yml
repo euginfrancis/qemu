@@ -137,18 +137,18 @@ jobs:
         if : ${{ matrix.platform == 'x86_64-apple-darwin'}}
         run: |
           cd $PWD/install/qemu/bin
-          otool -L * | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
-          otool -L * | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
-          otool -L * | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
+          otool -L qemu-system-xtensa | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
+          otool -L *.dylib | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
+          otool -L *.dylib | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
           otool -L qemu-system-xtensa
 
       - name: Package Darwin Libs (${{ matrix.target }} @ ${{ matrix.platform }})
         if : ${{ matrix.platform == 'aarch64-apple-darwin'}}
         run: |
           cd $PWD/install/qemu/bin
-          otool -L * | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
-          otool -L * | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
-          otool -L * | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
+          otool -L qemu-system-xtensa | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
+          otool -L *.dylib | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
+          otool -L *.dylib | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
           otool -L qemu-system-xtensa
 
       - name: Package (${{ matrix.target }} @ ${{ matrix.platform }})
