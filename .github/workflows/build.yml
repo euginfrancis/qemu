@@ -133,6 +133,14 @@ jobs:
         run: |
           ninja -C build install
 
+      - name: Package Darwin Libs (${{ matrix.target }} @ ${{ matrix.platform }})
+        if : ${{ matrix.platform == 'aarch64-apple-darwin' ||  matrix.platform == 'x86_64-apple-darwin'}}
+        run: |
+          cd $PWD/install/qemu/bin
+          otool -L * | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp xxx .
+          otool -L * | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp xxx .
+          otool -L * | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp xxx .
+
       - name: Package (${{ matrix.target }} @ ${{ matrix.platform }})
         env:
           VERSION: ${{ needs.Vars.outputs.VERSION }}
