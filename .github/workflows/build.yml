@@ -139,10 +139,10 @@ jobs:
           cd $PWD/install/qemu/bin
           ls -l
           otool -L qemu-system-xtensa
-          otool -L qemu-system-xtensa | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
+          otool -L qemu-system-xtensa | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp xxx .
           ls -l
-          otool -L *.dylib | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
-          otool -L *.dylib | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
+          otool -L *.dylib | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .  || true
+          otool -L *.dylib | grep /usr/local/opt | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx . || true
 
       - name: Package Other Darwin Libs (${{ matrix.target }} @ ${{ matrix.platform }})
         if : ${{ matrix.platform == 'aarch64-apple-darwin'}}
@@ -152,8 +152,8 @@ jobs:
           otool -L qemu-system-xtensa
           otool -L qemu-system-xtensa | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
           ls -l
-          otool -L *.dylib | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
-          otool -L *.dylib | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
+          otool -L *.dylib | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx . || true
+          otool -L *.dylib | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx . || true
 
       - name: Package (${{ matrix.target }} @ ${{ matrix.platform }})
         env:
