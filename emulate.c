@@ -67,9 +67,11 @@ int main(int argc, char*argv[]) {
     int x=0;
     fwrite(&x, 1, 1, fout);
     fclose(fout);
+#ifdef __linux__
     unsetenv("GTK_PATH");
     unsetenv("GDK_PIXBUF_MODULEDIR");
     unsetenv("GDK_PIXBUF_MODULE_FILE");
+#endif
     puts(cmd);
     int i=system(cmd);
     if(i<0) puts("Error Running Command");
