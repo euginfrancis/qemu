@@ -94,7 +94,7 @@ jobs:
         shell: ${{ matrix.shell }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
       - name: Install prerequisites (${{ matrix.target }} @ ${{ matrix.platform }})
         if : ${{ matrix.platform != 'x86_64-w64-mingw32' }}
@@ -173,19 +173,19 @@ jobs:
           echo "${ARCHIVE_NAME}" > ${DIST_DIR}/file_${PLATFORM}_${TARGET}
 
       - name: Dist filelist (dbg) (${{ matrix.target }} @ ${{ matrix.platform }})
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: dist-filelist-${{ matrix.target }}-${{ matrix.platform }}
           path: |
-            dist-${{ matrix.target }} @ ${{ matrix.platform }}/dist-filelist-*
+            dist/dist-filelist-*
 
       - name: Dist artifacts (${{ matrix.target }} @ ${{ matrix.platform }})
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           # TODO split artifacts for tests
-          name: dist-qemu-${{ matrix.target }} @ ${{ matrix.platform }}
+          name: dist-qemu
           path: |
-            dist-${{ matrix.target }} @ ${{ matrix.platform }}
+            dist
 
   Upload:
     if: startsWith(github.ref, 'refs/tags/')
@@ -214,18 +214,15 @@ jobs:
           ls -l
 
       - name: Source filelist (dbg)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
-          name: src-filelist-${{ matrix.target }} @ ${{ matrix.platform }}
+          name: src-filelist
           path: |
-            src-filelist.txt-${{ matrix.target }} @ ${{ matrix.platform }}
+            src-filelist.txt
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v3
         with:
-          path: dist-qemu
-          pattern: dist-qemu-*
-          merge-multiple: true
-
+          name: dist-qemu
 
       - name: Create a checksum file
         env:
