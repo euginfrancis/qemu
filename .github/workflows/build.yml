@@ -167,8 +167,8 @@ jobs:
           mkdir -p ${DIST_DIR}
           cd $PWD/install
           ARCHIVE_NAME=${PROJECT_NAME}-${TARGET}-${VERSION}-${PLATFORM}.tar.xz
-          tar -cJvf ${DIST_DIR}/${ARCHIVE_NAME} qemu > ${DIST_DIR}/dist-filelist-${TARGET}-${PLATFORM}.txt 2>&1
-          echo "${ARCHIVE_NAME}" > ${DIST_DIR}/file_${PLATFORM}_${TARGET}
+          tar -cJvf ${DIST_DIR}/${ARCHIVE_NAME} qemu
+
 
       - name: Dist artifacts (${{ matrix.target }} @ ${{ matrix.platform }})
         uses: actions/upload-artifact@v4
@@ -176,7 +176,7 @@ jobs:
           # TODO split artifacts for tests
           name: dist-qemu-${{ matrix.target }}-${{ matrix.platform }}
           path: |
-            dist
+            install/qemu
 
   Upload:
     if: startsWith(github.ref, 'refs/tags/')
