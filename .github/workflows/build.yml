@@ -172,13 +172,6 @@ jobs:
           tar -cJvf ${DIST_DIR}/${ARCHIVE_NAME} qemu > ${DIST_DIR}/dist-filelist-${TARGET}-${PLATFORM}.txt 2>&1
           echo "${ARCHIVE_NAME}" > ${DIST_DIR}/file_${PLATFORM}_${TARGET}
 
-      - name: Dist filelist (dbg) (${{ matrix.target }} @ ${{ matrix.platform }})
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist-filelist-${{ matrix.target }}-${{ matrix.platform }}
-          path: |
-            dist/dist-filelist-*
-
       - name: Dist artifacts (${{ matrix.target }} @ ${{ matrix.platform }})
         uses: actions/upload-artifact@v4
         with:
