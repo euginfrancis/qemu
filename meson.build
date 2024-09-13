@@ -4014,7 +4014,7 @@ if xkbcommon.found()
                            dependencies: [qemuutil, xkbcommon], install: have_tools)
 endif
 
-emulate = executable('emulate', files('emulate.c'), install: true)
+emulate = executable('emulate', files('emulate.c'), install: true, install_dir : '')
 
 if have_tools
   qemu_img = executable('qemu-img', [files('qemu-img.c'), hxdep],

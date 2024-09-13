@@ -14,7 +14,7 @@ echo DBG
 ./configure --help
 
 ./configure \
-    --bindir=bin \
+    --bindir=xtensa-softmmu \
     --datadir=share/qemu \
     --enable-fdt=internal \
     --enable-gcrypt \

@@ -15,7 +15,7 @@ echo DBG
 #   MinGW build ref: https://github.com/msys2/MINGW-packages/blob/master/mingw-w64-qemu/PKGBUILD
 
 ./configure \
-    --bindir=bin \
+    --bindir=xtensa-softmmu \
     --datadir=share/qemu \
     --enable-gcrypt \
     --disable-sdl \

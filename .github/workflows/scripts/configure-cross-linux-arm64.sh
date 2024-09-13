@@ -12,7 +12,7 @@ echo DBG
 ./configure --help
 
 ./configure \
-    --bindir=bin \
+    --bindir=xtensa-softmmu \
     --cross-prefix=aarch64-linux-gnu- \
     --datadir=share/qemu \
     --enable-gcrypt \
