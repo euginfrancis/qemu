@@ -324,12 +324,11 @@ static void esp32_spi_do_command(Esp32SpiState* s, uint32_t cmd_reg)
             int len;
             uint32_t buffer[1024];
             // outlink holds the bottom bits of the address of
-            // the DMA command list 
+            // the DMA command list
             unsigned addr = (0x3ff00000 | (s->outlink_reg & R_SPI_DMA_OUT_LINK_ADDR_MASK));
             int v[3];
-            int total_len=0;
             uint64_t ns_now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-            
+
             BusState *b = BUS(s->spi);
             BusChild *ch = QTAILQ_FIRST(&b->children);
             SSIPeripheral *peripheral = SSI_PERIPHERAL(ch->child);
@@ -347,17 +346,16 @@ static void esp32_spi_do_command(Esp32SpiState* s, uint32_t cmd_reg)
                 address_space_read(&address_space_memory, data,
                                    MEMTXATTRS_UNSPECIFIED, buffer, len);
                 if(s->xfer_32_bits) {
-                    for (int i = 0; i < (len+3)/4; i++) {    
+                    for (int i = 0; i < (len+3)/4; i++) {
                         ssc->transfer(peripheral,buffer[i]);
                     }
                 } else {
                     uint8_t *chb=(uint8_t *)buffer;
-                    for (int i = 0; i < len; i++) {    
+                    for (int i = 0; i < len; i++) {
                         ssc->transfer(peripheral,chb[i]);
                     }
                 }
-                total_len+=len;
-            } while (addr != 0);            
+            } while (addr != 0);
             uint64_t ns_to_timeout = s->mosi_dlen_reg * 25;  // about 75fps, same a real hw
             timer_mod_ns(&s->spi_timer,
                                             ns_now + ns_to_timeout);
