@@ -20,6 +20,7 @@ config XTENSA_ESP32
     select UNIMP
     select OPENCORES_ETH
     select DWC_SDMMC
+    select I2C
     select TMP105
     select LED
     select SPLIT_IRQ
@@ -32,6 +33,6 @@ config XTENSA_ESP32S3
     select UNIMP
     select OPENCORES_ETH
     select DWC_SDMMC
+    select I2C
     select TMP105
-
 
