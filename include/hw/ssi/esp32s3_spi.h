@@ -44,6 +44,7 @@ typedef struct ESP32S3SpiState {
     uint32_t mem_rd_st;
     uint32_t data_reg[ESP32S3_SPI_BUF_WORDS];
     uint32_t mem_sus_st;
+    uint32_t mem_misc;
     ESP32S3XtsAesState *xts_aes;
 } ESP32S3SpiState;
 

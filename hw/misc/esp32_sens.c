@@ -19,14 +19,18 @@
 
 int touch_sensor[10];
 
+uint32_t temp;
+
 static uint64_t esp32_sens_read(void *opaque, hwaddr addr, unsigned int size)
 {
 //Esp32SensState *s = ESP32_SENS(opaque);
     uint32_t r = 0;
-//    printf("esp32_sens_read %ld\n",addr);
+//    printf("esp32_sens_read %lx\n",addr);
     switch(addr) {
     case 0x54:
         return 0x10000+2800+rand()%4;
+   case 0x50:
+    return temp | (1<<8);
     case 0x84:
 	return (1<<10);
     }
@@ -45,7 +49,9 @@ static uint64_t esp32_sens_read(void *opaque, hwaddr addr, unsigned int size)
 static void esp32_sens_write(void *opaque, hwaddr addr, uint64_t value,
                                  unsigned int size) {
   //  Esp32SensState *s = ESP32_SENS(opaque);
-  //  printf("esp32_sens_write %ld %ld\n",addr, value);
+   if(addr==0x50)
+         temp=(uint32_t)value;
+//    printf("esp32_sens_write %ld %ld\n",addr, value);
 }
 
 static const MemoryRegionOps esp32_sens_ops = {

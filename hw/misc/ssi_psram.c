@@ -16,18 +16,21 @@
 #include "hw/misc/ssi_psram.h"
 
 #define CMD_READ_ID 0x9f
+#define CMD_READ_REG 64
 #define PSRAM_ID_MFG 0x0d
-#define PSRAM_ID_KGD 0x5d
+#define PSRAM_ID_KGD 0xdd
 
 static int get_eid_by_size(uint32_t size_mbytes) {
     switch (size_mbytes)
     {
     case 2:
-        return 0x00;
+        return 0x1;
     case 4:
-        return 0x21;
+        return 0x1;
     case 8:
-        return 0x40;
+        return 0x3;
+    case 16:
+        return 0x5;
     default:
         qemu_log_mask(LOG_UNIMP, "%s: PSRAM size %" PRIu32 "MB not implemented\n",
                       __func__, size_mbytes);
@@ -38,26 +41,34 @@ static int get_eid_by_size(uint32_t size_mbytes) {
 static uint32_t psram_read(SsiPsramState *s)
 {
     uint32_t result = 0;
-    if (s->command == CMD_READ_ID) {
-        uint8_t read_id_response[] = {
+     uint8_t read_id_response[] = {
             0x00, 0x00, 0x00, 0x00,
-            0x00, PSRAM_ID_MFG, PSRAM_ID_KGD,
-            get_eid_by_size(s->size_mbytes),
-            0xaa, 0xbb, 0xcc, 0xdd, 0xee
+            (2<<2) | (1<<5), PSRAM_ID_MFG, (1<<7) | get_eid_by_size(s->size_mbytes) | (2<<3),
+            (1<<5) | (1<<6),0,0,0,0,1 | (1<<2),
+            0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0
         };
-        int index = s->byte_count - s->dummy;
+    if (s->command == CMD_READ_ID) {
+      int index = s->byte_count - s->dummy;
         if (index < ARRAY_SIZE(read_id_response)) {
             result = read_id_response[index];
         }
     }
+    if (s->command == CMD_READ_REG)  {
+//	printf("psram_read reg %d %d\n",s->byte_count, s->reg);
+        if(s->byte_count >= 10) result=read_id_response[s->reg+4+s->byte_count-10];
+    }
+//    printf("psram_read %d %d %d\n",s->command,s->byte_count, result);
     return result;
 }
 
 static void psram_write(SsiPsramState *s, uint32_t value)
 {
+//    printf("psram_write %d %d %d\n",s->byte_count, s->dummy, value);
     if (s->byte_count == s->dummy) {
         s->command = value;
     }
+    if (s->byte_count == 5)
+      	s->reg = value;
     s->byte_count++;
 }
 
@@ -71,7 +82,7 @@ static uint32_t psram_transfer(SSIPeripheral *dev, uint32_t value)
 static int psram_cs(SSIPeripheral *ss, bool select)
 {
     SsiPsramState *s = SSI_PSRAM(ss);
-
+    //printf("psram_cs %d\n",select);
     if (!select) {
         s->byte_count = 0;
         s->command = -1;

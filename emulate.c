@@ -20,50 +20,47 @@ void copyfile(char *name, FILE *fout, int loc) {
 }
 
 int main(int argc, char*argv[]) {
-    int ard=0;
+    int bootloader_pos=0x1000;
+    int partitions_pos=0x8000;
+    int firmware_pos=0x10000;
+    int flash_size=4*1024*1024;
+    char *machine=(char *)"esp32";
     if(argc<3) {
-        printf("emulate firmware build_dir [packages_dir arduino]\n");
+        printf("emulate firmware build_dir [s3]\n");
         exit(1);
     }
-    if(argc==5 && !strcmp(argv[4],"arduino")) {
-		ard=1;
+    if(argc==4 && !strcmp(argv[3],"s3")) {
+        bootloader_pos=0;
+        machine=(char *)"esp32s3";
+        flash_size=16*1024*1024;
     }
     char *firmware_name=argv[1];
     char *build_dir=argv[2];
-    char *package_dir=argv[3];
 
     char bootloader_name[256];
     char partitions_name[256];
-    char boot_app_name[256];
     char cmd[512];
-    if(!ard)
-      snprintf(bootloader_name,256,"%s/bootloader.bin",build_dir);
-    else {
-      snprintf(bootloader_name,256,"%s/framework-arduinoespressif32/tools/sdk/esp32/bin/bootloader_dio_40m.bin",package_dir);
-      snprintf(boot_app_name,256,"%s/framework-arduinoespressif32/tools/partitions/boot_app0.bin",package_dir);
-    }
+    snprintf(bootloader_name,256,"%s/bootloader.bin",build_dir);
     snprintf(partitions_name,256,"%s/partitions.bin",build_dir);
-//    printf("%s\n",argv[0]);
     char package_path[256];
     strncpy(package_path,argv[0],255);
     int l=strlen(package_path);
     while(l>0 && package_path[l]!='/' && package_path[l]!='\\') l--;
     package_path[l]=0;
 #ifdef __APPLE__
-    snprintf(cmd,512,"DYLD_LIBRARY_PATH=%s/xtensa-softmmu %s/xtensa-softmmu/qemu-system-xtensa -machine esp32 -drive file=esp32flash.bin,if=mtd,format=raw -display default,show-cursor=on -nic user,model=esp32_wifi,net=192.168.4.0/24,hostfwd=tcp::16555-192.168.4.1:80 -parallel none -monitor none"
-            ,package_path,package_path);
+    snprintf(cmd,512,"DYLD_LIBRARY_PATH=%s/xtensa-softmmu %s/xtensa-softmmu/qemu-system-xtensa -machine %s -drive file=esp32flash.bin,if=mtd,format=raw -display default,show-cursor=on -nic user,model=esp32_wifi,net=192.168.4.0/24,hostfwd=tcp::16555-192.168.4.1:80 -parallel none -monitor none"
+            ,package_path,package_path,machine);
 #else
-    snprintf(cmd,512,"%s/xtensa-softmmu/qemu-system-xtensa -machine esp32 -drive file=esp32flash.bin,if=mtd,format=raw -display default,show-cursor=on -nic user,model=esp32_wifi,net=192.168.4.0/24,hostfwd=tcp::16555-192.168.4.1:80 -parallel none -monitor none"
-            ,package_path);
+    snprintf(cmd,512,"%s/xtensa-softmmu/qemu-system-xtensa -machine %s -drive file=esp32flash.bin,if=mtd,format=raw -display default,show-cursor=on -nic user,model=esp32_wifi,net=192.168.4.0/24,hostfwd=tcp::16555-192.168.4.1:80 -parallel none -monitor none"
+            ,package_path,machine);
 #endif
 
     FILE* fout=fopen("esp32flash.bin","r+b");
     if(fout==0) fout=fopen("esp32flash.bin","wb");
-    copyfile(bootloader_name, fout, 0x1000);
-    copyfile(partitions_name, fout, 0x8000);
-    if(ard) copyfile(boot_app_name, fout, 0xe000);
-    copyfile(firmware_name, fout, 0x10000);
-    fseek(fout,0x3fffff,SEEK_SET);
+    copyfile(bootloader_name, fout, bootloader_pos);
+    copyfile(partitions_name, fout, partitions_pos);
+    copyfile(firmware_name, fout, firmware_pos);
+    fseek(fout,flash_size-1,SEEK_SET);
     int x=0;
     fwrite(&x, 1, 1, fout);
     fclose(fout);

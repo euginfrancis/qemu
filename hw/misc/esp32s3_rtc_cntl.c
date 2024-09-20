@@ -72,7 +72,11 @@ static uint64_t esp32s3_rtc_cntl_read(void *opaque, hwaddr addr, unsigned int si
     case A_RTC_CNTL_STORE7:
         r = s->scratch_reg[(addr - A_RTC_CNTL_STORE4) / 4 + 4];
         break;
+    case A_RTC_CNTL_RTC_PWC_REG:
+        r = 0x92d;
+	break;
     }
+//    printf("esp32s3_rtc_cntl_read %x %x\n",(int)addr,(int)r);
     return r;
 }
 

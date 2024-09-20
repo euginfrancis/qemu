@@ -36,6 +36,10 @@
 static uint64_t esp32c3_efuse_read(void *opaque, hwaddr addr, unsigned int size)
 {
     ESP32C3EfuseState *s = ESP32C3_EFUSE(opaque);
+
+    if(addr==0x44) return 0x00c40a24;//0xC4000110;
+    if(addr==0x48) return 0xfe1001;//0xfe240A;
+
     uint8_t  *content_8  = ((uint8_t*) &s->efuses) + addr;
     uint16_t *content_16 = (uint16_t*) content_8;
     uint32_t *content_32 = (uint32_t*) content_8;
@@ -493,6 +497,8 @@ static void esp32c3_efuse_realize(DeviceState *dev, Error **errp)
 
     /* State machine is ready */
     s->efuses.status.state = 1;
+//    s->efuses.0x00c40a24;//0xC4000110;
+//    if(addr==8) r= 0xfe1001;
 
     return;
 error:

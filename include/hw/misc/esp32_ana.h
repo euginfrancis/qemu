@@ -2,7 +2,7 @@
 
 #include "hw/hw.h"
 #include "hw/sysbus.h"
-#include "hw/misc/esp32_reg.h"
+//#include "hw/misc/esp32_reg.h"
 
 
 #define TYPE_ESP32_ANA "misc.esp32.ana"
@@ -11,6 +11,7 @@
 typedef struct Esp32AnaState {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
+    bool iss3;
     uint32_t mem[1024];
 } Esp32AnaState;
 

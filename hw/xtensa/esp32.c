@@ -716,10 +716,12 @@ static void esp32_soc_init(Object *obj)
 
     object_initialize_child(obj, "rmt", &s->rmt, TYPE_ESP32_RMT);
 
-//    for(int i=0;i<nb_nics;i++)
-//        if (nd_table[i].used && nd_table[i].model && strcmp(nd_table[i].model, TYPE_ESP32_WIFI) == 0)
     if(qemu_find_nic_info(TYPE_ESP32_WIFI, false, NULL)!=NULL)
 	    object_initialize_child(obj, "wifi", &s->wifi, TYPE_ESP32_WIFI);
+
+	// these peripherals need to know which device we are
+    s->wifi.iss3=0;
+    s->ana.iss3=0;
 
     object_initialize_child(obj, "fe", &s->fe, TYPE_ESP32_FE);
 

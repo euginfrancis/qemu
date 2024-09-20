@@ -116,6 +116,7 @@ bool esp32s3_gdma_get_channel_periph(ESP32S3GdmaState *s, GdmaPeripheral periph,
 
 bool esp32s3_gdma_read_channel(ESP32S3GdmaState *s, uint32_t chan, uint8_t* buffer, uint32_t size);
 bool esp32s3_gdma_write_channel(ESP32S3GdmaState *s, uint32_t chan, uint8_t* buffer, uint32_t size);
+int esp32s3_gdma_get_transfer_size(ESP32S3GdmaState *s, uint32_t chan);
 
 REG32(DMA_IN_INT_RAW_CH0, 0x008)
     FIELD(DMA_IN_INT_RAW_CH0, INFIFO_UDF_L3_CH0_INT_RAW, 9, 1)

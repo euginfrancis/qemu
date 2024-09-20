@@ -22,6 +22,7 @@
 //#include "hw/display/st7789v.h"
 #include "sysemu/runstate.h"
 #include "qemu/timer.h"
+#include "hw/qdev-properties.h"
 
 #define PANEL_WIDTH 240
 #define PANEL_HEIGHT 135
@@ -58,6 +59,7 @@ static ConsoleState console_state;
 struct  St7789vState {
     SSIPeripheral ssidev;
     ConsoleState *con;
+    bool iss3;
     qemu_irq button[2];
 };
 
@@ -74,27 +76,39 @@ OBJECT_DECLARE_SIMPLE_TYPE(St7789vState, ST7789V)
 #define SKIN_LANDSCAPE_X_OFFSET (126/2)
 #define SKIN_LANDSCAPE_Y_OFFSET (82/2)
 
+#define SKIN_PORTRAIT_X_OFFSET_S3 (82/2)
+#define SKIN_PORTRAIT_Y_OFFSET_S3 (126/2+48)
+#define SKIN_LANDSCAPE_X_OFFSET_S3 (126/2+48)
+#define SKIN_LANDSCAPE_Y_OFFSET_S3 (82/2-8)
+
 typedef struct { uint8_t r; uint8_t g; uint8_t b; uint8_t a;} pixel;
 
-extern const struct {
+typedef struct {  
   guint          width;
   guint          height;
   guint          bytes_per_pixel; 
-  pixel          pixel_data[208 * 474];
-} ttgo_board_skin;
+  pixel          pixel_data[];
+} image_header;
+
+
+extern image_header ttgo_board_skin;
+extern image_header ttgos3_board_skin;
+
+image_header *board_skin=&ttgos3_board_skin;
+
 
 static void draw_skin(ConsoleState *c) {
     volatile uint32_t *dest = c->data;
-    for (int i = 0; i < ttgo_board_skin.height; i++)
-        for (int j = 0; j < ttgo_board_skin.width; j++) {
-            pixel p = ttgo_board_skin.pixel_data[i * ttgo_board_skin.width + j];
+    for (int i = 0; i < board_skin->height; i++)
+        for (int j = 0; j < board_skin->width; j++) {
+            pixel p = board_skin->pixel_data[i * board_skin->width + j];
             uint32_t rgba= (p.a<<24) | (p.r<<16) | (p.g<<8) | p.b;
             if (p.a < 200)
                 rgba=0xff000000;
             if (c->width < c->height)  // portrait
-                dest[i * ttgo_board_skin.width + j] = rgba;
+                dest[i * board_skin->width + j] = rgba;
             else
-                dest[(ttgo_board_skin.width - j - 1) * ttgo_board_skin.height +i] = rgba;
+                dest[(board_skin->width - j - 1) * board_skin->height +i] = rgba;
         }
 }
 static void bl_timer_cb(void *v) {
@@ -110,9 +124,14 @@ static void bl_timer_cb(void *v) {
     c->time_off=0;
     timer_mod_ns(&console_state.backlight_timer, now + 100000000);
 }
-static void set_portrait(ConsoleState *c) {
-    qemu_console_resize(c->con, ttgo_board_skin.width,
-                        ttgo_board_skin.height);
+static void set_portrait(St7789vState *s) {
+    ConsoleState *c=&console_state;
+    if(s->iss3)
+         board_skin=&ttgos3_board_skin;
+    else
+        board_skin=&ttgo_board_skin;
+    qemu_console_resize(c->con, board_skin->width,
+                        board_skin->height);
     c->data=surface_data(qemu_console_surface(c->con));
     c->width = PANEL_HEIGHT;
     c->height = PANEL_WIDTH;
@@ -120,13 +139,22 @@ static void set_portrait(ConsoleState *c) {
     c->y_offset = PORTRAIT_Y_OFFSET;
     c->skin_x_offset = SKIN_PORTRAIT_X_OFFSET;
     c->skin_y_offset = SKIN_PORTRAIT_Y_OFFSET;
-    c->skin_width = ttgo_board_skin.width;
+    if(s->iss3) {
+        c->skin_x_offset = SKIN_PORTRAIT_X_OFFSET_S3;
+        c->skin_y_offset = SKIN_PORTRAIT_Y_OFFSET_S3;
+    }
+    c->skin_width = board_skin->width;
     draw_skin(c);
 }
 
-static void set_landscape(ConsoleState *c) {
-    qemu_console_resize(c->con, ttgo_board_skin.height,
-                    ttgo_board_skin.width);
+static void set_landscape(St7789vState *s) {
+    ConsoleState *c=&console_state;
+    if(s->iss3)
+         board_skin=&ttgos3_board_skin;
+    else
+        board_skin=&ttgo_board_skin;
+    qemu_console_resize(c->con, board_skin->height,
+                    board_skin->width);
     c->data=surface_data(qemu_console_surface(c->con));
     c->width = PANEL_WIDTH;
     c->height = PANEL_HEIGHT;
@@ -134,7 +162,11 @@ static void set_landscape(ConsoleState *c) {
     c->y_offset = LANDSCAPE_Y_OFFSET;
     c->skin_x_offset = SKIN_LANDSCAPE_X_OFFSET;
     c->skin_y_offset = SKIN_LANDSCAPE_Y_OFFSET;
-    c->skin_width = ttgo_board_skin.height;
+    if(s->iss3) {
+        c->skin_x_offset = SKIN_LANDSCAPE_X_OFFSET_S3;
+        c->skin_y_offset = SKIN_LANDSCAPE_Y_OFFSET_S3;
+    }
+    c->skin_width = board_skin->height;
     draw_skin(c);
 }
 
@@ -143,6 +175,8 @@ static void set_landscape(ConsoleState *c) {
 static uint32_t st7789v_transfer(SSIPeripheral *dev, uint32_t data)
 {
     ConsoleState *c=&console_state;
+    St7789vState *s = ST7789V(dev);
+//    printf(" st7789 %x %x\n", c->current_command, data);
     uint8_t *bytes;
     if(c->cmd_mode) {
         c->current_command=data;
@@ -150,9 +184,9 @@ static uint32_t st7789v_transfer(SSIPeripheral *dev, uint32_t data)
         switch (c->current_command) {
             case ST7789_MADCTL:
                 if (data == 0 || data == 8) {  // portrait
-                    set_portrait(c);
+                    set_portrait(s);
                 } else {  // landscape
-                    set_landscape(c);
+                    set_landscape(s);
                 }
                 break;
             case ST7789_CASET:
@@ -172,6 +206,12 @@ static uint32_t st7789v_transfer(SSIPeripheral *dev, uint32_t data)
                     c->little_endian = 1;
                 else
                     c->little_endian = 0;
+                if(data==0xe000) {
+			c->little_endian = 1;
+//			c->iss3=1;
+//			set_landscape(c);
+		}
+		//printf("ST7789_RAMCTRL %x\n",data);
                 break;
             case ST7789_RAMWR:
                 for(int i=0;i<2;i++) {
@@ -201,7 +241,7 @@ static uint32_t st7789v_transfer(SSIPeripheral *dev, uint32_t data)
 //                        d32=(d32>>2)&0x3f3f3f;
                     uint32_t offset = (c->y - c->y_offset + c->skin_y_offset) * 
                         c->skin_width + c->x - c->x_offset + c->skin_x_offset;
-                    if(offset<ttgo_board_skin.height*ttgo_board_skin.width)
+                    if(offset<board_skin->height*board_skin->width)
                         c->data[offset] = d32;
                     c->x++;
                     if (c->x > c->x_end) {
@@ -263,7 +303,8 @@ static void st7789_update_display(void *opaque) {
     ConsoleState *c = &console_state;
     if (!c->redraw) return;
     c->redraw = 0;
-    dpy_gfx_update(c->con, c->skin_x_offset, c->skin_y_offset, c->width, c->height);
+    dpy_gfx_update_full(c->con);
+//    dpy_gfx_update(c->con, c->skin_x_offset, c->skin_y_offset, c->width, c->height);
 }
 
 static void st7789_invalidate_display(void *opaque) {
@@ -382,6 +423,10 @@ static QemuInputHandler keyboard_handler = {
     .event = keyboard_event,
 };
 
+static Property st7789v_properties[] = {
+    DEFINE_PROP_BOOL("s3_skin",St7789vState,iss3,false),
+    DEFINE_PROP_END_OF_LIST(),
+};
 
 
 static void st7789v_realize(SSIPeripheral *d, Error **errp) {
@@ -403,7 +448,7 @@ static void st7789v_realize(SSIPeripheral *d, Error **errp) {
         c->lasttime=now;
         timer_init_ns(&c->backlight_timer,QEMU_CLOCK_VIRTUAL, bl_timer_cb,0);
         timer_mod_ns(&c->backlight_timer, now + 100000000);
-        set_landscape(c);
+        set_landscape(s);
     } else {
         s->con = &console_state;
     }
@@ -425,6 +470,7 @@ static void st7789v_class_init(ObjectClass *klass, void *data) {
     k->transfer = st7789v_transfer;
     k->cs_polarity = SSI_CS_NONE;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
+    device_class_set_props(dc, st7789v_properties);
 }
 
 static const TypeInfo st7789v_info = {

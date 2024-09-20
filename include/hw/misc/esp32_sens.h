@@ -2,7 +2,7 @@
 
 #include "hw/hw.h"
 #include "hw/sysbus.h"
-#include "hw/misc/esp32_reg.h"
+//#include "hw/misc/esp32_reg.h"
 
 
 #define TYPE_ESP32_SENS "misc.esp32.sens"

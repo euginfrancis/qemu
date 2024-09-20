@@ -44,7 +44,10 @@ typedef union ESP32S3MMUEntry {
     struct {
         uint32_t    page_number : 8;
         uint32_t    invalid     : 1;
-        uint32_t    reserved    : 23;   /* Must always be 0 */
+        uint32_t    reserved    : 5;
+        uint32_t    spiflag     : 1;
+        uint32_t    psramflag   : 1;
+        uint32_t    reserved1   : 16;   /* Must always be 0 */
     };
     uint32_t val;
 } ESP32S3MMUEntry;
@@ -91,6 +94,7 @@ typedef struct {
     hwaddr       icache_base;
     MemoryRegion dcache;
     MemoryRegion icache;
+    MemoryRegion psram;
 
     /* Registers for controlling the cache */
     uint32_t regs[ESP32S3_CACHE_REG_COUNT];

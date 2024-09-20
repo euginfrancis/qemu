@@ -376,7 +376,7 @@ bool esp32s3_gdma_get_channel_periph(ESP32S3GdmaState *s, GdmaPeripheral periph,
 {
     /* If the state, the peripheral or the direction is invalid, return directly */
     if (s == NULL || chan == NULL ||
-        periph > GDMA_LAST || periph == GDMA_SPI3 || periph == GDMA_I2S1 || periph == GDMA_LCDCAM ||
+        periph > GDMA_LAST || periph == GDMA_SPI3 || periph == GDMA_I2S1 || // periph == GDMA_LCDCAM ||
         dir < 0 || dir >= ESP32S3_GDMA_CONF_COUNT)
     {
         return false;
@@ -398,6 +398,22 @@ bool esp32s3_gdma_get_channel_periph(ESP32S3GdmaState *s, GdmaPeripheral periph,
 }
 
 
+int esp32s3_gdma_get_transfer_size(ESP32S3GdmaState *s, uint32_t chan) {
+    DmaConfigState* state = &s->ch_conf[chan][ESP32S3_GDMA_OUT_IDX];
+    GdmaLinkedList out_list;
+    uint32_t total=0;
+    uint32_t out_addr = ((ESP32S3_GDMA_RAM_ADDR >> 20) << 20) | FIELD_EX32(state->link, DMA_OUT_LINK_CH0, OUTLINK_ADDR_CH0);
+    esp32s3_gdma_read_descr(s, out_addr, &out_list);
+    total+=out_list.config.length;
+//    printf("got list %d %d\n",out_list.config.length, out_list.config.size);
+    while(!out_list.config.suc_eof) {
+	    esp32s3_gdma_next_list_node(s, chan, ESP32S3_GDMA_OUT_IDX, &out_list);
+//	printf("got next list %d \n",out_list.config.length);
+	    total+=out_list.config.length;
+	}
+//	printf("got size=%d\n",total);
+	return total;
+}
 /**
  * @brief Read data from guest RAM pointed by the linked list configured in the given DmaConfigState index.
  *        `size` bytes will be read and stored in `buffer`.

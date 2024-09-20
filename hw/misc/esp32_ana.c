@@ -13,13 +13,35 @@ static uint64_t esp32_ana_read(void *opaque, hwaddr addr, unsigned int size)
 {
     Esp32AnaState *s = ESP32_ANA(opaque);
     uint32_t r = s->mem[addr/4];
-    switch(addr) {
-        case 4: r= 0xFDFFFFFF;
-        break;
-        case 68:
-        case 76:
-        case 196: r=0xFFFFFFFF;
-        break;
+    if(s->iss3) {
+        switch(addr) {
+            case 0:
+            case 0x48:
+                r=0x00ffffff;
+            break;
+            case 4:
+                r= 0xFDFFFFFF;
+            break;
+            case 0x50:
+                r|=0x07000000;
+            break;
+            case 0x44:
+            case 0x4c:
+            case 0xc4:
+                r=0xFFFFFFFF;
+            break;
+        }
+    } else {
+        switch(addr) {
+            case 4:
+                r= 0xFDFFFFFF;
+            break;
+            case 0x44:
+            case 0x4c:
+            case 0xc4:
+                r=0xFFFFFFFF;
+            break;
+        }
     }
     return r;
 }
@@ -27,14 +49,23 @@ static uint64_t esp32_ana_read(void *opaque, hwaddr addr, unsigned int size)
 static void esp32_ana_write(void *opaque, hwaddr addr, uint64_t value,
                                  unsigned int size) {
     Esp32AnaState *s = ESP32_ANA(opaque);
-    if(addr==196) {
-        //printf("wifi channel:%x %x\n",(int)value, (int)~value);
+    if(addr==196 && !s->iss3) {
         int v=value&255;
-        if((v%10)==4) 
+        if((v%10)==4) {
             esp32_wifi_channel=(v/10)-1;
+//            printf("wifi channel:%x %d\n",(int)value, esp32_wifi_channel);
+        }
     }
+    if(addr==0x150 && s->iss3) {
+        int v= (value & 0x0FF00000) >> 0x14;
+        esp32_wifi_channel=(v-7)/5;
+        if(esp32_wifi_channel > 14) esp32_wifi_channel = 14;
+//        printf("wifi channel:%x %d\n",(int)value, esp32_wifi_channel);
+    }
+//    if(addr==196 && s->iss3) {
+//        printf("wifi channelxx:%x\n",(int)value);
+//    }
     s->mem[addr/4]=value;
-    //printf("esp32_ana_write %x %x\n",(int)addr,(int)value);
 }
 
 static const MemoryRegionOps esp32_ana_ops = {

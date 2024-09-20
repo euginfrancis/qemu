@@ -3,7 +3,7 @@
 #include "hw/hw.h"
 #include "hw/registerfields.h"
 #include "hw/sysbus.h"
-#include "hw/misc/esp32_reg.h"
+//#include "hw/misc/esp32_reg.h"
 #include "sysemu/sysemu.h"
 #include "net/net.h"
 
@@ -33,6 +33,7 @@ typedef struct Esp32WifiState {
     int inject_timer_running;
     unsigned int inject_sequence_number;
     int beacon_ap;
+    bool iss3;
 
     hwaddr receive_queue_address;
     uint32_t receive_queue_count;
@@ -62,3 +63,11 @@ REG32(WIFI_DMA_INT_CLR, 0xc4c);
 REG32(WIFI_STATUS, 0xcc8);
 REG32(WIFI_DMA_OUTLINK, 0xd20);
 REG32(WIFI_DMA_OUT_STATUS, 0xd24);
+
+REG32(WIFI_DMA_IN_STATUS_S3, 0x84);
+REG32(WIFI_DMA_INLINK_S3, 0x88);
+REG32(WIFI_DMA_INT_STATUS_S3, 0xc3c);
+REG32(WIFI_DMA_INT_CLR_S3, 0xc40);
+REG32(WIFI_STATUS_S3, 0xcb0);
+REG32(WIFI_DMA_OUTLINK_S3, 0xd08);
+REG32(WIFI_DMA_OUT_STATUS_S3, 0xd14);

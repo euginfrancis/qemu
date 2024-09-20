@@ -11,6 +11,7 @@ typedef struct SsiPsramState {
     int dummy;
     int command;
     int byte_count;
+    int reg;
 } SsiPsramState;
 
 #define TYPE_SSI_PSRAM "ssi_psram"

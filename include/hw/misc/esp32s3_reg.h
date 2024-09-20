@@ -27,6 +27,7 @@
 #define DR_REG_IO_MUX_BASE                      0x60009000
 #define DR_REG_HINF_BASE                        0x6000B000
 #define DR_REG_UHCI1_BASE                       0x6000C000
+#define DR_REG_ANA_BASE                         0x6000E000
 #define DR_REG_I2S_BASE                         0x6000F000
 #define DR_REG_UART1_BASE                       0x60010000
 #define DR_REG_BT_BASE                          0x60011000
@@ -55,6 +56,13 @@
 #define DR_REG_PWM1_BASE                        0x6002C000
 #define DR_REG_I2S1_BASE                        0x6002D000
 #define DR_REG_UART2_BASE                       0x6002E000
+
+// just a guess
+#define DR_REG_PHY_BASE                         0x60031000
+#define DR_REG_WIFI_BASE                        0x60033000
+#define DR_REG_PHYA_BASE                        0x60034000
+#define DR_REG_WDEV_BASE                        0x60035000
+
 #define DR_REG_USB_SERIAL_JTAG_BASE             0x60038000
 #define DR_REG_USB_WRAP_BASE                    0x60039000
 #define DR_REG_AES_BASE                         0x6003A000
@@ -74,7 +82,7 @@
 #define DR_REG_WCL_BASE                         0x600D0000
 #define ESP_CACHE_TEMP_ADDR                     0x3C800000
 #define DR_REG_EMAC_BASE                        0x600CD000
-#define DR_REG_WDEV_BASE                        0x3ff75000
+//#define DR_REG_WDEV_BASE                        0x3ff75000
 
 #define DR_REG_MMU_TABLE                        0x600c5000
 

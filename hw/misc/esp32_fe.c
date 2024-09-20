@@ -13,8 +13,10 @@ static uint64_t esp32_fe_read(void *opaque, hwaddr addr, unsigned int size)
     uint32_t r = 0;
     Esp32FeState *s = ESP32_FE(opaque);
     r=s->mem[addr/4];
-    if(addr==124)
+    if(addr==124 || addr==0x174)
         r=0xffffffff;
+
+//    printf("esp32_fe_read %x %x\n",(int)addr,(int)r);
     return r;
 }
 
@@ -22,6 +24,7 @@ static void esp32_fe_write(void *opaque, hwaddr addr, uint64_t value,
                                  unsigned int size) {
   Esp32FeState *s = ESP32_FE(opaque);
   s->mem[addr/4]=(uint32_t)value;
+//  printf("esp32_fe_write %x %x\n",(int)addr,(int)value);
 }
 
 static const MemoryRegionOps esp32_fe_ops = {

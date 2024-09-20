@@ -23,6 +23,7 @@
 #include "hw/misc/esp32s3_xts_aes.h"
 #include "sysemu/block-backend-io.h"
 #include "hw/misc/esp32s3_reg.h"
+#include "exec/address-spaces.h"
 
 
 #define CACHE_DEBUG      0
@@ -72,7 +73,7 @@ static inline void esp32s3_write_mmu_value(ESP32S3CacheState *s, hwaddr reg_addr
         /* The entry contains the index of the 64KB block from the flash memory */
         const uint32_t physical_address = e.page_number * ESP32S3_PAGE_SIZE;
         uint8_t* cache_data = ((uint8_t*) memory_region_get_ram_ptr(&s->dcache)) + virtual_address;
-        // printf("[CACHE] physical_address=%8.8x, virtual_address=%8.8x\n", physical_address, virtual_address);
+        //printf("[CACHE] physical_address=%8.8x, virtual_address=%8.8x\n", physical_address, virtual_address);
 
         if (e.invalid) {
             const uint32_t invalid_value = 0xdeadbeef;
@@ -81,11 +82,18 @@ static inline void esp32s3_write_mmu_value(ESP32S3CacheState *s, hwaddr reg_addr
                 cache_word_data[i] = invalid_value;
             }
         } else {
-            if (s->flash_blk != NULL) {
-                blk_pread(s->flash_blk, physical_address, ESP32S3_PAGE_SIZE, cache_data, 0);
-            }
-            if (xts_aes_class->is_flash_enc_enabled(s->xts_aes)) {
-                xts_aes_class->decrypt(s->xts_aes, physical_address, cache_data, ESP32S3_PAGE_SIZE);
+            if(e.psramflag) {
+                //printf("[CACHE] psram physical_address=%8.8x, virtual_address=%8.8x\n", physical_address, virtual_address);
+                MemoryRegion *block = g_new(MemoryRegion, 1);
+                memory_region_init_alias(block, OBJECT(s), "psram",  &s->psram,physical_address, 64*1024);
+                memory_region_add_subregion_overlap(get_system_memory(), 0x3c000000+virtual_address, block,1);
+            } else {
+                if (s->flash_blk != NULL) {
+                    blk_pread(s->flash_blk, physical_address, ESP32S3_PAGE_SIZE, cache_data, 0);
+                }
+                if (xts_aes_class->is_flash_enc_enabled(s->xts_aes)) {
+                    xts_aes_class->decrypt(s->xts_aes, physical_address, cache_data, ESP32S3_PAGE_SIZE);
+                }
             }
         }
         s->mmu[index].val = e.val;

@@ -57,6 +57,13 @@ typedef struct ESP32S3SpiTransaction {
 } ESP32S3SpiTransaction;
 
 
+static void esp32s3_spi_cs_set(ESP32S3SpiState *s, int value)
+{
+    for (int i = 0; i < 2; ++i) {
+        qemu_set_irq(s->cs_gpio[i], ((s->mem_misc & (1 << i)) == 0) ? value : 1);
+    }
+}
+
 static uint64_t esp32s3_spi_read(void *opaque, hwaddr addr, unsigned int size)
 {
     ESP32S3SpiState *s = ESP32S3_SPI(opaque);
@@ -104,6 +111,9 @@ static uint64_t esp32s3_spi_read(void *opaque, hwaddr addr, unsigned int size)
             break;
         case A_SPI_MEM_SUS_STATUS:
             r = s->mem_sus_st;
+            break;
+        case A_SPI_MEM_MISC:
+            r = s->mem_misc;
             break;
         default:
 #if SPI1_WARNING
@@ -155,12 +165,12 @@ static void esp32s3_spi_perform_transaction(ESP32S3SpiState *s, ESP32S3SpiTransa
         }
     }
 
-    qemu_set_irq(s->cs_gpio[0], 0);
+    esp32s3_spi_cs_set(s, 0);
     esp32s3_spi_txrx_buffer(s, &t->cmd, t->cmd_bytes, NULL, 0);
     esp32s3_spi_txrx_buffer(s, &t->addr, t->addr_bytes, NULL, 0);
     esp32s3_spi_dummy_cycles(s, t->dummy_bytes);
     esp32s3_spi_txrx_buffer(s, t->data, t->tx_bytes, t->data, t->rx_bytes);
-    qemu_set_irq(s->cs_gpio[0], 1);
+    esp32s3_spi_cs_set(s, 1);
 }
 
 
@@ -391,6 +401,10 @@ static void esp32s3_spi_write(void *opaque, hwaddr addr,
         case A_SPI_MEM_SUS_STATUS:
             s->mem_sus_st = wvalue;
             break;
+        case A_SPI_MEM_MISC:
+            //printf("write SPI_MEM_MISC %lx\n",value);
+            s->mem_misc = wvalue;
+            break;
         default:
 #if SPI1_WARNING
             warn_report("[SPI1] Unsupported write to 0x%lx (%08lx)", addr, value);
@@ -422,6 +436,7 @@ static void esp32s3_spi_reset(DeviceState *dev)
     s->mem_user1 = FIELD_DP32(s->mem_user1, SPI_MEM_USER1, USR_DUMMY_CYCLELEN, 7);
 
     s->mem_user2 = FIELD_DP32(s->mem_user2, SPI_MEM_USER2, USR_COMMAND_BITLEN, 7);
+    s->mem_misc = 6;
 
     /* In case more registers are supported in the future (MEM_MISC, MEM_TX_CRC, ...)
      * update this function with their default values */
