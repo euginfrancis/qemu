@@ -50,6 +50,7 @@
 #include "hw/char/esp32s3_uart.h"
 #include "hw/misc/esp32s3_rng.h"
 #include "hw/misc/esp32_wifi.h"
+#include "hw/misc/esp32_mcpwm.h"
 
 
 #include "hw/misc/esp32_ana.h"
@@ -68,6 +69,7 @@
 #include "hw/misc/esp32s3_rsa.h"
 #include "hw/misc/esp32s3_hmac.h"
 #include "hw/misc/esp32s3_ds.h"
+#include "hw/misc/esp32c3_ledc.h"
 #include "hw/timer/esp32c3_timg.h"
 #include "hw/timer/esp32s3_systimer.h"
 #include "hw/gpio/esp32s3_gpio.h"
@@ -153,6 +155,9 @@ typedef struct Esp32s3SocState {
     Esp32FeState fe;
     Esp32PhyaState phya;
     Esp32SensState sens;
+    Esp32C3LEDCState ledc;
+    Esp32McpwmState mcpwm0;
+    Esp32McpwmState mcpwm1;
 
     ESP32S3XtsAesState xts_aes;
     ESP32C3TimgState timg[2];
@@ -218,6 +223,11 @@ static void esp32s3_soc_reset(DeviceState *dev)
         for (int i = 0; i < ESP32S3_UART_COUNT; ++i) {
             device_cold_reset(DEVICE(&s->uart[i]));
         }
+        device_cold_reset(DEVICE(&s->gpio));
+        device_cold_reset(DEVICE(&s->ledc));
+	    if(qemu_find_nic_info(TYPE_ESP32_WIFI, false, NULL)!=NULL)
+    	    device_cold_reset(DEVICE(&s->wifi));
+    	device_cold_reset(DEVICE(&s->rmt));
     }
     if (s->requested_reset & ESP32S3_SOC_RESET_PROCPU) {
         xtensa_select_static_vectors(&s->cpu[0].env, s->rtc_cntl.stat_vector_sel[0]);
@@ -229,10 +239,6 @@ static void esp32s3_soc_reset(DeviceState *dev)
         remove_cpu_watchpoints(&s->cpu[1]);
         cpu_reset(CPU(&s->cpu[1]));
     }
-    
-    if(qemu_find_nic_info(TYPE_ESP32_WIFI, false, NULL)!=NULL)
-        device_cold_reset(DEVICE(&s->wifi));
-    device_cold_reset(DEVICE(&s->rmt));
 
     s->requested_reset = 0;
 }
@@ -719,12 +725,17 @@ static void esp32s3_machine_init(MachineState *machine)
     object_initialize_child(OBJECT(ss), "rsa", &ss->rsa, TYPE_ESP32S3_RSA);
     object_initialize_child(OBJECT(ss), "hmac", &ss->hmac, TYPE_ESP32S3_HMAC);
     object_initialize_child(OBJECT(ss), "ds", &ss->ds, TYPE_ESP32S3_DS);
+    object_initialize_child(OBJECT(ss), "ledc", &ss->ledc, TYPE_ESP32C3_LEDC);
 
     object_initialize_child(OBJECT(ss), "xts_aes", &ss->xts_aes, TYPE_ESP32S3_XTS_AES);
     object_initialize_child(OBJECT(ss), "timg0", &ss->timg[0], TYPE_ESP32C3_TIMG);
     object_initialize_child(OBJECT(ss), "timg1", &ss->timg[1], TYPE_ESP32C3_TIMG);
     object_initialize_child(OBJECT(ss), "systimer", &ss->systimer, TYPE_ESP32S3_SYSTIMER);
     object_initialize_child(OBJECT(ss), "lcd", &ss->lcd, TYPE_ESP32S3_LCD);
+     object_initialize_child(OBJECT(ss), "mcpwm0", &ss->mcpwm0, TYPE_ESP32_MCPWM);
+
+    object_initialize_child(OBJECT(ss), "mcpwm1", &ss->mcpwm1, TYPE_ESP32_MCPWM);
+
     if(qemu_find_nic_info(TYPE_ESP32_WIFI, false, NULL)!=NULL)
             object_initialize_child(OBJECT(ss), "wifi", &ss->wifi, TYPE_ESP32_WIFI);
 
@@ -840,6 +851,16 @@ static void esp32s3_machine_init(MachineState *machine)
         MemoryRegion *mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(&ss->gpio), 0);
         memory_region_add_subregion_overlap(sys_mem, DR_REG_GPIO_BASE, mr, 0);
         sysbus_connect_irq(SYS_BUS_DEVICE(&ss->gpio),0,qdev_get_gpio_in(intmatrix_dev, ETS_GPIO_INTR_SOURCE));
+
+    }
+
+    {
+        qdev_realize(DEVICE(&ss->ledc), &ss->periph_bus, &error_fatal);
+        esp32s3_soc_add_periph_device(sys_mem, &ss->ledc, DR_REG_LEDC_BASE);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&ss->ledc), 0,
+                           qdev_get_gpio_in(intmatrix_dev, ETS_LEDC_INTR_SOURCE));
+        qdev_connect_gpio_out_named(DEVICE(&ss->ledc),"func_irq",0,
+                                                        qdev_get_gpio_in_named(DEVICE(&ss->gpio),ESP32_GPIOS_FUNC,0));
     }
 
     {
@@ -851,6 +872,23 @@ static void esp32s3_machine_init(MachineState *machine)
 	qdev_realize(DEVICE(&ss->sens), &ss->periph_bus, &error_fatal);
    	esp32s3_soc_add_periph_device(sys_mem, &ss->sens, DR_REG_SENS_BASE);
  
+    }
+    {
+    object_property_set_int(OBJECT(&ss->mcpwm0),"func_sig_start",160, &error_abort);
+    qdev_realize(DEVICE(&ss->mcpwm0), &ss->periph_bus, &error_fatal);
+    esp32s3_soc_add_periph_device(sys_mem, &ss->mcpwm0, DR_REG_PWM0_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&ss->mcpwm0), 0,
+                           qdev_get_gpio_in(intmatrix_dev, ETS_PWM0_INTR_SOURCE));
+         object_property_set_int(OBJECT(&ss->mcpwm1),"func_sig_start",166, &error_abort);
+    qdev_realize(DEVICE(&ss->mcpwm1), &ss->periph_bus, &error_fatal);
+    esp32s3_soc_add_periph_device(sys_mem, &ss->mcpwm1, DR_REG_PWM1_BASE);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&ss->mcpwm1), 0,
+                           qdev_get_gpio_in(intmatrix_dev, ETS_PWM1_INTR_SOURCE));   
+    qdev_connect_gpio_out_named(DEVICE(&ss->mcpwm0),"func_irq",0,
+                                qdev_get_gpio_in_named(DEVICE(&ss->gpio),ESP32_GPIOS_FUNC,0));
+    qdev_connect_gpio_out_named(DEVICE(&ss->mcpwm1),"func_irq",0,
+                                    qdev_get_gpio_in_named(DEVICE(&ss->gpio),ESP32_GPIOS_FUNC,0));
+            
     }
 
 
@@ -898,8 +936,6 @@ static void esp32s3_machine_init(MachineState *machine)
     ss->lcd.cmd_gpio=qdev_get_gpio_in_named(disp, "cmd", 0);
 //    qemu_set_irq(qdev_get_gpio_in_named(disp, "backlight", 0),1);
    
-   ServoState *servo=servo_create_simple(OBJECT(ss),"servo");
-    qdev_connect_gpio_out_named(DEVICE(&ss->gpio), ESP32_GPIOS, 27, qdev_get_gpio_in(DEVICE(servo), 0));
 
 
     qdev_connect_gpio_out_named(DEVICE(&ss->gpio), ESP32_GPIOS, 38, qdev_get_gpio_in_named(disp, "backlight", 0));
@@ -996,6 +1032,9 @@ static void esp32s3_machine_init(MachineState *machine)
     ssi_create_peripheral(ss->rmt.rmt, "rgbled");
   }
 
+    ServoState *servo=servo_create_simple(OBJECT(ss),"servo");
+    qdev_connect_gpio_out_named(DEVICE(&ss->gpio), ESP32_GPIOS, 21, qdev_get_gpio_in(DEVICE(servo), 0));
+
 //    esp32s3_soc_add_unimp_device(sys_mem, "esp32s3.rmt", DR_REG_RMT_BASE, 0x1000);
     esp32s3_soc_add_unimp_device(sys_mem, "esp32s3.iomux", DR_REG_IO_MUX_BASE, 0x2000);
     
@@ -1080,7 +1119,7 @@ static ram_addr_t esp32s3_fixup_ram_size(ram_addr_t requested_size)
 {
     ram_addr_t size;
     if (requested_size == 0) {
-        size = 0;
+        size = 4 * MiB;
     } else if (requested_size <= 2 * MiB) {
         size = 2 * MiB;
     } else if (requested_size <= 4 * MiB ) {

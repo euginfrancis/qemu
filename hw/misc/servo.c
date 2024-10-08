@@ -32,8 +32,9 @@ static void servo_set_state_gpio_handler(void *opaque, int line, int new_state)
 //	printf("servo %x %d\n",new_state,v);
     if(new_state!=s->last_state) {
         int64_t now=qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+//        printf("servo time %ld\n",now);
         if(v==0) {
-            int angle=(((now-s->last_time)-1000000)*90)/1000000;
+            int angle=(((now-s->last_time)-1000000L)*90L)/1000000L;
             int t=(s->last_state)>>1;
             if(t!=0) angle=((t-1000)*90)/1000;
 //            printf("angle %d\n",angle);

@@ -96,15 +96,10 @@ static void set_gpio(void *opaque, int n, int val) {
         s->gpio_in &= ~(1 << n);
         s->gpio_in |= (val << n);
         int irq = get_triggering(int_type, oldval, val);
-        // says bit 16 in the ref manual, is that wrong?
         if (irq && (s->gpio_pin[n] & (1 << 13))) {  // cpu int enable
             qemu_set_irq(s->irq, 1);
             s->gpio_cpu_int |= (1 << n);
         }
-//        if (irq && (s->gpio_pin[n] & (1 << 13))) {  // app cpu int enable
-//            qemu_set_irq(s->irq, 1);
-//            s->gpio_acpu_int |= (1 << n);
-//        }
     } else {
         int n1 = n - 32;
         int oldval = (s->gpio_in1 >> n1) & 1;
@@ -112,15 +107,10 @@ static void set_gpio(void *opaque, int n, int val) {
         s->gpio_in1 &= ~(1 << n1);
         s->gpio_in1 |= (val << n1);
         int irq = get_triggering(int_type, oldval, val);
-        // says bit 16 in the ref manual, is that wrong?
         if (irq && (s->gpio_pin[n] & (1 << 13))) {  // pro cpu int enable
             qemu_set_irq(s->irq, 1);
             s->gpio_cpu_int1 |= (1 << n1);
         }
-//        if (irq && (s->gpio_pin[n] & (1 << 13))) {  // app cpu int enable
-//            qemu_set_irq(s->irq, 1);
- //           s->gpio_acpu_int1 |= (1 << n1);
- //       }
     }
 }
 static void esp32_gpio_write(void *opaque, hwaddr addr, uint64_t value,
@@ -210,7 +200,7 @@ static void esp32_gpio_write(void *opaque, hwaddr addr, uint64_t value,
             s->gpio_in_sel[(addr - A_GPIO_FUNC_IN_SEL_CFG_BASE)/4] = value;
             break;
         case A_GPIO_FUNC_OUT_SEL_CFG_BASE ... A_GPIO_FUNC_OUT_SEL_CFG_BASE+0x9c:
-//            printf("gpio_out_sel %lx %lx\n",addr,value);
+//            printf("gpio_out_sel %lx %lx\n",(addr - A_GPIO_FUNC_OUT_SEL_CFG_BASE)/4,value);
             s->gpio_out_sel[(addr - A_GPIO_FUNC_OUT_SEL_CFG_BASE)/4] = value;
             break;
     }
@@ -232,6 +222,19 @@ static void esp32_gpio_write(void *opaque, hwaddr addr, uint64_t value,
         }
     }
 }
+
+static void func_gpio(void *opaque, int n, int val) {
+        ESP32S3GPIOState *s = ESP32S3_GPIO(opaque);
+        int func=(val>>1)&0x1ff;
+        int v=val & 1;
+        int param=((unsigned)val)>>10;
+        for(int i=0;i<40;i++) {
+                if((s->gpio_out_sel[i] & 0x1ff ) == func) {
+                        qemu_set_irq(s->gpios[i], v+(param<<1));
+                }
+        }
+}
+
 static const MemoryRegionOps gpio_ops = {
     .read = esp32_gpio_read,
     .write = esp32_gpio_write,
@@ -262,9 +265,7 @@ static void esp32s3_gpio_init(Object *obj)
     qdev_init_gpio_out_named(DEVICE(s), &s->irq, SYSBUS_DEVICE_GPIO_IRQ, 1);
     qdev_init_gpio_out_named(DEVICE(s), s->gpios, ESP32_GPIOS, 49);
     qdev_init_gpio_in_named(DEVICE(s), set_gpio, ESP32_GPIOS_IN, 49);
-//    qdev_init_gpio_in_named(DEVICE(s), func_gpio, ESP32_GPIOS_FUNC,1);
-//    s->gpio_in = 0x1;
-//    s->gpio_in1 = 0x8;
+    qdev_init_gpio_in_named(DEVICE(s), func_gpio, ESP32_GPIOS_FUNC,1);
 
 }
 

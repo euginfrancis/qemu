@@ -3,7 +3,6 @@
 #include "hw/hw.h"
 #include "hw/sysbus.h"
 #include "hw/registerfields.h"
-#include "hw/misc/esp32_reg.h"
 #include "qemu/timer.h"
 
 #define TYPE_ESP32_MCPWM "misc.esp32.mcpwm"
