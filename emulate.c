@@ -19,23 +19,33 @@ void copyfile(char *name, FILE *fout, int loc) {
     fclose(fin);
 }
 
+
 int main(int argc, char*argv[]) {
     int bootloader_pos=0x1000;
     int partitions_pos=0x8000;
     int firmware_pos=0x10000;
     int flash_size=4*1024*1024;
     char *machine=(char *)"esp32";
-    if(argc<3) {
-        printf("emulate firmware build_dir [s3]\n");
+    if(argc<2) {
+        printf("emulate firmware [build_dir] [s3]\n");
         exit(1);
     }
-    if(argc==4 && !strcmp(argv[3],"s3")) {
+    if(argc>2 && !strcmp(argv[argc-1],"s3")) {
         bootloader_pos=0;
         machine=(char *)"esp32s3";
         flash_size=16*1024*1024;
     }
     char *firmware_name=argv[1];
-    char *build_dir=argv[2];
+    char build_dir[256];
+
+    if(argc>2 && strcmp(argv[2],"s3")) {
+        strncpy(build_dir,argv[2],255);
+    } else {
+       strncpy(build_dir,firmware_name,255);
+       int l=strlen(build_dir);
+       while(l>0 && build_dir[l]!='/' && build_dir[l]!='\\') l--;
+       build_dir[l]=0;
+    }
 
     char bootloader_name[256];
     char partitions_name[256];
