@@ -364,18 +364,33 @@ static void keyboard_event(DeviceState *dev, QemuConsole *src,
                     touch_sensor[i] = 0;
                 break;
             }
+printf("xpos=%d ypos=%d\n",xpos,ypos);
             if (portrait) {
-                if (xpos > 24996 && xpos < 27962 && ypos > 28481 &&
-                    ypos < 30347) {
-                    qemu_set_irq(s->button[1], up);
+                if(s->iss3) {
+                    if (xpos > 24575 && xpos < 30561 && ypos > 30063 &&
+                        ypos < 31382) {
+                        qemu_set_irq(s->button[1], up);
+                    }
+                    if (xpos > 2205 && xpos < 8979 && ypos > 29932 &&
+                        ypos < 31448) {
+                        qemu_set_irq(s->button[0], up);
+                    }
+                    if (xpos > 157 && xpos < 2835 && ypos > 25580 &&
+                        ypos < 27294 && up == 0)
+                        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+                } else {
+                    if (xpos > 24996 && xpos < 27962 && ypos > 28481 &&
+                        ypos < 30347) {
+                        qemu_set_irq(s->button[1], up);
+                    }
+                    if (xpos > 3071 && xpos < 6616 && ypos > 28481 &&
+                        ypos < 30347) {
+                        qemu_set_irq(s->button[0], up);
+                    }
+                    if (xpos > 30876 && xpos < 32530 && ypos > 23503 &&
+                        ypos < 24713 && up == 0)
+                        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
                 }
-                if (xpos > 3071 && xpos < 6616 && ypos > 28481 &&
-                    ypos < 30347) {
-                    qemu_set_irq(s->button[0], up);
-                }
-                if (xpos > 30876 && xpos < 32530 && ypos > 23503 &&
-                    ypos < 24713 && up == 0)
-                    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
                 int xs[] = {0,    0, 1417,  1417,  1417,
                             1417, 0, 30010, 30010, 30010};
                 int ys[] = {0,     0, 12132, 13791, 15312,
@@ -388,17 +403,32 @@ static void keyboard_event(DeviceState *dev, QemuConsole *src,
                     }
                 }
             } else {
-                if (xpos > 28308 && xpos < 30451 && ypos > 5199 &&
-                    ypos < 8428) {
-                    qemu_set_irq(s->button[1], up);
+                if(s->iss3) {
+                    if (xpos > 29932 && xpos < 31382 && ypos > 2047 &&
+                        ypos < 7089) {
+                        qemu_set_irq(s->button[1], up);
+                    }
+                    if (xpos > 29866 && xpos < 31580 && ypos > 24575 &&
+                        ypos < 29931) {
+                        qemu_set_irq(s->button[0], up);
+                    }
+                    
+                    if (xpos > 25382 && xpos < 30561 && ypos > 30063 &&
+                        ypos < 31382 && up == 0)
+                        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+                } else {
+                    if (xpos > 28308 && xpos < 30451 && ypos > 5199 &&
+                        ypos < 8428) {
+                        qemu_set_irq(s->button[1], up);
+                    }
+                    if (xpos > 28308 && xpos < 30451 && ypos > 26386 &&
+                        ypos < 29852) {
+                        qemu_set_irq(s->button[0], up);
+                    }
+                    if (xpos > 23607 && xpos < 24540 && ypos > 551 && ypos < 1732 &&
+                        up == 0)
+                        qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
                 }
-                if (xpos > 28308 && xpos < 30451 && ypos > 26386 &&
-                    ypos < 29852) {
-                    qemu_set_irq(s->button[0], up);
-                }
-                if (xpos > 23607 && xpos < 24540 && ypos > 551 && ypos < 1732 &&
-                    up == 0)
-                    qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
                 int xs[] = {0,     0, 12166, 13618, 15277,
                             16798, 0, 18388, 12166, 13791};
                 int ys[] = {0,     0, 31743, 31743, 31743,
