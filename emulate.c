@@ -36,7 +36,7 @@ int main(int argc, char*argv[]) {
         flash_size=16*1024*1024;
     }
     char *firmware_name=argv[1];
-    char build_dir[200];
+    char build_dir[201];
 
     if(argc>2 && strcmp(argv[2],"s3")) {
         strncpy(build_dir,argv[2],200);
