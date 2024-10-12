@@ -36,12 +36,12 @@ int main(int argc, char*argv[]) {
         flash_size=16*1024*1024;
     }
     char *firmware_name=argv[1];
-    char build_dir[256];
+    char build_dir[200];
 
     if(argc>2 && strcmp(argv[2],"s3")) {
-        strncpy(build_dir,argv[2],255);
+        strncpy(build_dir,argv[2],200);
     } else {
-       strncpy(build_dir,firmware_name,255);
+       strncpy(build_dir,firmware_name,200);
        int l=strlen(build_dir);
        while(l>0 && build_dir[l]!='/' && build_dir[l]!='\\') l--;
        build_dir[l]=0;
