@@ -62,7 +62,9 @@ static uint64_t esp32s3_intmatrix_read(void* opaque, hwaddr addr, unsigned int s
 {
     Esp32s3IntMatrixState *s = ESP32S3_INTMATRIX(opaque);
     uint8_t* map_entry = get_map_entry(s, addr);
+#if INTC_DEBUG
 info_report("esp32s3_intmatrix_read %lx:%x\n",addr, (map_entry != NULL) ? *map_entry : 0);
+#endif // INTC_DEBUG
     return (map_entry != NULL) ? *map_entry : 0;
 }
 
