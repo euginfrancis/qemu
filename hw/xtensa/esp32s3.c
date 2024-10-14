@@ -266,10 +266,10 @@ static void esp32s3_soc_add_periph_device(MemoryRegion *dest, void* dev, hwaddr 
 {
     MemoryRegion *mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
     memory_region_add_subregion_overlap(dest, dport_base_addr, mr, 0);
-    MemoryRegion *mr_apb = g_new(MemoryRegion, 1);
-    char *name = g_strdup_printf("mr-apb-0x%08x", (uint32_t) dport_base_addr);
-    memory_region_init_alias(mr_apb, OBJECT(dev), name, mr, 0, memory_region_size(mr));
-    g_free(name);
+//    MemoryRegion *mr_apb = g_new(MemoryRegion, 1);
+//    char *name = g_strdup_printf("mr-apb-0x%08x", (uint32_t) dport_base_addr);
+//    memory_region_init_alias(mr_apb, OBJECT(dev), name, mr, 0, memory_region_size(mr));
+//    g_free(name);
 }
 
 #define MB (1024*1024)

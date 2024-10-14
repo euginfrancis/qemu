@@ -123,6 +123,8 @@ static void esp32s3_lcd_write(void *opaque, hwaddr addr,
             break;
         case A_LCD_CAM_LC_DMA_INT_CLR:
             s->int_raw &= (~wvalue);
+            if((s->int_raw & s->int_en)==0)
+                qemu_irq_lower(s->irq);
             break;
     }
 

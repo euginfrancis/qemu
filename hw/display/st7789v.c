@@ -364,7 +364,7 @@ static void keyboard_event(DeviceState *dev, QemuConsole *src,
                     touch_sensor[i] = 0;
                 break;
             }
-printf("xpos=%d ypos=%d\n",xpos,ypos);
+// printf("xpos=%d ypos=%d\n",xpos,ypos);
             if (portrait) {
                 if(s->iss3) {
                     if (xpos > 24575 && xpos < 30561 && ypos > 30063 &&
@@ -412,7 +412,7 @@ printf("xpos=%d ypos=%d\n",xpos,ypos);
                         ypos < 29931) {
                         qemu_set_irq(s->button[0], up);
                     }
-                    
+
                     if (xpos > 25382 && xpos < 30561 && ypos > 30063 &&
                         ypos < 31382 && up == 0)
                         qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
