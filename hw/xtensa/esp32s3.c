@@ -74,7 +74,7 @@
 #include "hw/timer/esp32s3_systimer.h"
 #include "hw/gpio/esp32s3_gpio.h"
 #include "hw/misc/esp32s3_xts_aes.h"
-#include "hw/misc/esp32_sens.h"
+#include "hw/misc/esp32s3_sens.h"
 
 #include "cpu_esp32s3.h"
 
@@ -154,10 +154,10 @@ typedef struct Esp32s3SocState {
     Esp32AnaState ana;
     Esp32FeState fe;
     Esp32PhyaState phya;
-    Esp32SensState sens;
     Esp32C3LEDCState ledc;
     Esp32McpwmState mcpwm0;
     Esp32McpwmState mcpwm1;
+    Esp32S3SensState sens;
 
     ESP32S3XtsAesState xts_aes;
     ESP32C3TimgState timg[2];
@@ -219,15 +219,23 @@ static void esp32s3_soc_reset(DeviceState *dev)
         s->requested_reset = ESP32S3_SOC_RESET_ALL;
     }
     if (s->requested_reset & ESP32S3_SOC_RESET_PERIPH) {
+        device_cold_reset(DEVICE(&s->cache));
         device_cold_reset(DEVICE(&s->intmatrix));
         for (int i = 0; i < ESP32S3_UART_COUNT; ++i) {
             device_cold_reset(DEVICE(&s->uart[i]));
         }
         device_cold_reset(DEVICE(&s->gpio));
         device_cold_reset(DEVICE(&s->ledc));
+        device_cold_reset(DEVICE(&s->lcd));
 	    if(qemu_find_nic_info(TYPE_ESP32_WIFI, false, NULL)!=NULL)
     	    device_cold_reset(DEVICE(&s->wifi));
     	device_cold_reset(DEVICE(&s->rmt));
+        device_cold_reset(DEVICE(&s->gdma));
+        device_cold_reset(DEVICE(&s->mcpwm0));
+        device_cold_reset(DEVICE(&s->mcpwm1));
+        device_cold_reset(DEVICE(&s->spi1));
+        device_cold_reset(DEVICE(&s->timg[0]));
+        device_cold_reset(DEVICE(&s->timg[1]));
     }
     if (s->requested_reset & ESP32S3_SOC_RESET_PROCPU) {
         xtensa_select_static_vectors(&s->cpu[0].env, s->rtc_cntl.stat_vector_sel[0]);
@@ -715,7 +723,6 @@ static void esp32s3_machine_init(MachineState *machine)
    object_initialize_child(OBJECT(ss), "fe", &ss->fe, TYPE_ESP32_FE);
 
     object_initialize_child(OBJECT(ss), "phya", &ss->phya, TYPE_ESP32_PHYA);
-    object_initialize_child(OBJECT(ss), "sens", &ss->sens, TYPE_ESP32_SENS);
 
     object_initialize_child(OBJECT(ss), "clock", &ss->clock, TYPE_ESP32S3_CLOCK);
 
@@ -732,9 +739,9 @@ static void esp32s3_machine_init(MachineState *machine)
     object_initialize_child(OBJECT(ss), "timg1", &ss->timg[1], TYPE_ESP32C3_TIMG);
     object_initialize_child(OBJECT(ss), "systimer", &ss->systimer, TYPE_ESP32S3_SYSTIMER);
     object_initialize_child(OBJECT(ss), "lcd", &ss->lcd, TYPE_ESP32S3_LCD);
-     object_initialize_child(OBJECT(ss), "mcpwm0", &ss->mcpwm0, TYPE_ESP32_MCPWM);
-
+    object_initialize_child(OBJECT(ss), "mcpwm0", &ss->mcpwm0, TYPE_ESP32_MCPWM);
     object_initialize_child(OBJECT(ss), "mcpwm1", &ss->mcpwm1, TYPE_ESP32_MCPWM);
+    object_initialize_child(OBJECT(ss), "sens", &ss->sens, TYPE_ESP32S3_SENS);
 
     if(qemu_find_nic_info(TYPE_ESP32_WIFI, false, NULL)!=NULL)
             object_initialize_child(OBJECT(ss), "wifi", &ss->wifi, TYPE_ESP32_WIFI);
@@ -869,10 +876,11 @@ static void esp32s3_machine_init(MachineState *machine)
 
     }
     {
-	qdev_realize(DEVICE(&ss->sens), &ss->periph_bus, &error_fatal);
-   	esp32s3_soc_add_periph_device(sys_mem, &ss->sens, DR_REG_SENS_BASE);
- 
+        qdev_realize(DEVICE(&ss->sens), &ss->periph_bus, &error_fatal);
+        esp32s3_soc_add_periph_device(sys_mem, &ss->sens, DR_REG_SENS_BASE);
+
     }
+
     {
     object_property_set_int(OBJECT(&ss->mcpwm0),"func_sig_start",160, &error_abort);
     qdev_realize(DEVICE(&ss->mcpwm0), &ss->periph_bus, &error_fatal);

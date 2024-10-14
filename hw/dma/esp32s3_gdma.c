@@ -245,6 +245,11 @@ static void esp32s3_gdma_reset_fifo(ESP32S3GdmaState *s, uint32_t chan, uint32_t
 #endif
     /* Set the FIFO empty bit to 1, full bit to 0, and number of bytes of data to 0 */
     s->ch_conf[chan][in_out].status = R_DMA_INFIFO_STATUS_CH0_INFIFO_EMPTY_CH0_MASK;
+    s->ch_conf[chan][in_out].link = 0;
+    s->ch_conf[chan][in_out].conf0 = 0;
+    s->ch_conf[chan][in_out].conf1 = 0;
+    s->ch_conf[chan][in_out].state = 0;
+    s->ch_conf[chan][in_out].peripheral = 0;
 }
 
 
@@ -386,6 +391,7 @@ bool esp32s3_gdma_get_channel_periph(ESP32S3GdmaState *s, GdmaPeripheral periph,
     for (int i = 0; i < ESP32S3_GDMA_CHANNEL_COUNT; i++) {
         /* IN/OUT PERI registers have the same organization, can use any macro.
          * Look for the channel that was configured with the given peripheral. It must be marked as "started" too */
+        //printf("%d %d %d %d %d\n",i,dir,FIELD_EX32(s->ch_conf[i][dir].peripheral, DMA_IN_PERI_SEL_CH0, PERI_IN_SEL_CH0), periph, FIELD_EX32(s->ch_conf[i][dir].link, DMA_OUT_LINK_CH0, OUTLINK_START_CH0));
         if ( FIELD_EX32(s->ch_conf[i][dir].peripheral, DMA_IN_PERI_SEL_CH0, PERI_IN_SEL_CH0) == periph ||
              FIELD_EX32(s->ch_conf[i][dir].link, DMA_OUT_LINK_CH0, OUTLINK_START_CH0)) {
 

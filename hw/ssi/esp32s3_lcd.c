@@ -75,6 +75,7 @@ static void esp32s3_lcd_write(void *opaque, hwaddr addr,
                 uint64_t ns_now = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
                 if ( !esp32s3_gdma_get_channel_periph(s->gdma, GDMA_LCDCAM, ESP32S3_GDMA_OUT_IDX, &gdma_out_idx) ) {
         	        warn_report("[LCD_CAM] GDMA requested but no properly configured channel found");
+                    break;
                 }
 //                printf("cmd %x %x\n",s->cmd_val,wvalue&0x3fff);
                 int tr_size;
@@ -142,7 +143,10 @@ static const MemoryRegionOps esp32s3_lcd_ops = {
 
 static void esp32s3_lcd_reset(DeviceState *dev)
 {
-  //  ESP32S3LcdState *s = ESP32S3_LCD(dev);
+    ESP32S3LcdState *s = ESP32S3_LCD(dev);
+    s->int_en=0;
+    s->user = 0;
+    timer_del(&s->lcd_timer);
 }
 
 static void esp32s3_lcd_realize(DeviceState *dev, Error **errp)
