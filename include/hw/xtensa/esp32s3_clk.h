@@ -21,6 +21,8 @@
 
 #define ESP32S3_SYSTEM_CPU_INTR_COUNT   4
 
+#define ESP32S3_CLK_UPDATE_GPIO   "s3clk-update"
+
 /**
  * Value for SYSTEM_SOC_CLK_SEL
  */
@@ -39,6 +41,7 @@
 */
 #define ESP32S3_PERIOD_SEL_80       0
 #define ESP32S3_PERIOD_SEL_160      1
+#define ESP32S3_PERIOD_SEL_240      2
 
 
 typedef struct ESP32S3ClockState {
@@ -59,6 +62,8 @@ typedef struct ESP32S3ClockState {
     uint32_t app_cpu_addr;
     
     uint32_t sys_ext_dev_enc_dec_ctrl;
+    qemu_irq clk_update;
+
 } ESP32S3ClockState;
 
 typedef struct ESP32S3ClockClass {

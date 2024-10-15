@@ -97,6 +97,12 @@ static void esp32s3_clock_write(void *opaque, hwaddr addr, uint64_t value,
         case A_SYSTEM_EXTERNAL_DEVICE_ENCRYPT_DECRYPT_CONTROL:
             s->sys_ext_dev_enc_dec_ctrl = value;
             break;
+        case A_SYSTEM_CPU_PER_CONF:
+            s->cpuperconf = value;
+//            printf("%lx\n",value);
+            qemu_irq_pulse(s->clk_update);
+            break;
+
         default:
 #if CLOCK_WARNING
             warn_report("[CLOCK] Unsupported write to %08lx (%08lx)\n", addr, value);
@@ -150,6 +156,8 @@ static void esp32s3_clock_init(Object *obj)
     for (uint64_t i = 0; i < ESP32S3_SYSTEM_CPU_INTR_COUNT; i++) {
         sysbus_init_irq(sbd, &s->irqs[i]);
     }
+    qdev_init_gpio_out_named(DEVICE(sbd), &s->clk_update, ESP32S3_CLK_UPDATE_GPIO, 1);
+
 }
 
 static void esp32s3_clock_class_init(ObjectClass *klass, void *data)

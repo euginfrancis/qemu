@@ -257,6 +257,12 @@ static void esp32s3_cpu_stall(void* opaque, int n, int level)
 
 static void esp32s3_clk_update(void* opaque, int n, int level)
 {
+    Esp32s3SocState *s=(Esp32s3SocState *)opaque;
+    int cpuperconf=s->clock.cpuperconf;
+    int cpu_clk_freq=80000000*(cpuperconf+1);
+    //printf("set freq %d\n",cpu_clk_freq);
+    clock_update_hz(s->cpu[0].clock, cpu_clk_freq );
+    clock_update_hz(s->cpu[1].clock, cpu_clk_freq );
     if (!level) {
         return;
     }
@@ -451,8 +457,8 @@ static void esp32s3_soc_realize(DeviceState *dev, Error **errp)
 
     qdev_connect_gpio_out_named(DEVICE(&s->rtc_cntl), ESP32S3_RTC_DIG_RESET_GPIO, 0,
                                 qdev_get_gpio_in_named(dev, ESP32S3_RTC_DIG_RESET_GPIO, 0));
-    qdev_connect_gpio_out_named(DEVICE(&s->rtc_cntl), ESP32S3_RTC_CLK_UPDATE_GPIO, 0,
-                                qdev_get_gpio_in_named(dev, ESP32S3_RTC_CLK_UPDATE_GPIO, 0));
+    
+    
     for (int i = 0; i < ms->smp.cpus; ++i) {
         qdev_connect_gpio_out_named(DEVICE(&s->rtc_cntl), ESP32S3_RTC_CPU_RESET_GPIO, i,
                                     qdev_get_gpio_in_named(dev, ESP32S3_RTC_CPU_RESET_GPIO, i));
@@ -607,7 +613,7 @@ static void esp32s3_soc_init(Object *obj)
     qdev_init_gpio_in_named(DEVICE(s), esp32s3_dig_reset,  ESP32S3_RTC_DIG_RESET_GPIO, 1);
     qdev_init_gpio_in_named(DEVICE(s), esp32s3_cpu_reset,  ESP32S3_RTC_CPU_RESET_GPIO, ESP32S3_CPU_COUNT);
     qdev_init_gpio_in_named(DEVICE(s), esp32s3_cpu_stall,  ESP32S3_RTC_CPU_STALL_GPIO, ESP32S3_CPU_COUNT);
-    qdev_init_gpio_in_named(DEVICE(s), esp32s3_clk_update, ESP32S3_RTC_CLK_UPDATE_GPIO, 1);
+    qdev_init_gpio_in_named(DEVICE(s), esp32s3_clk_update, ESP32S3_CLK_UPDATE_GPIO, 1);
 }
 
 static Property esp32s3_soc_properties[] = {
@@ -816,6 +822,8 @@ static void esp32s3_machine_init(MachineState *machine)
             sysbus_connect_irq(SYS_BUS_DEVICE(&ss->clock), i,
                            qdev_get_gpio_in(intmatrix_dev, ETS_FROM_CPU_INTR0_SOURCE + i));
         }
+        qdev_connect_gpio_out_named(DEVICE(&ss->clock), ESP32S3_CLK_UPDATE_GPIO, 0,
+                                qdev_get_gpio_in_named(DEVICE(ss), ESP32S3_CLK_UPDATE_GPIO, 0));
     }
     /* Timer Groups realization */
     {
