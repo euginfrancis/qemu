@@ -76,7 +76,7 @@ jobs:
             run_configure: "./.github/workflows/scripts/configure-win.sh"
 
           - platform: x86_64-apple-darwin
-            runs_on: macos-14
+            runs_on: macos-13
             shell: bash -e {0}
             run_prerequisites: "./.github/workflows/scripts/prerequisites-macos.sh"
             run_configure: "./.github/workflows/scripts/configure-macos.sh"
@@ -139,10 +139,10 @@ jobs:
           cd $PWD/install/qemu/xtensa-softmmu
           ls -l
           otool -L qemu-system-xtensa
-          otool -L qemu-system-xtensa | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
+          otool -L qemu-system-xtensa | grep "/opt/homebrew\|/usr/local/opt" | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx .
           ls -l
-          otool -L *.dylib | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx . || true
-          otool -L *.dylib | grep /opt/homebrew | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx . || true
+          otool -L *.dylib | grep "/opt/homebrew\|/usr/local/opt"  | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx . || true
+          otool -L *.dylib | grep "/opt/homebrew\|/usr/local/opt"  | cut -f 1 -d " " | xargs -Ixxx  cp -n xxx . || true
 
       - name: Package (${{ matrix.target }} @ ${{ matrix.platform }})
         env:
