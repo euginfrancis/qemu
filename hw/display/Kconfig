@@ -144,3 +144,5 @@ config XLNX_DISPLAYPORT
 config ST7789V
     bool
 
+config RGB_LED
+    bool

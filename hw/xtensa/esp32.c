@@ -841,6 +841,7 @@ static void esp32_machine_init_i2c(Esp32SocState *s)
     I2CBus* i2c_bus = I2C_BUS(qdev_get_child_bus(i2c_master, "i2c"));
     I2CSlave* tmp105 = i2c_slave_create_simple(i2c_bus, "tmp105", 0x48);
     object_property_set_int(OBJECT(tmp105), "temperature", 25 * 1000, &error_fatal);
+    i2c_slave_create_simple(i2c_bus, "mpu6050", 0x68);
 }
 
 static void esp32_machine_init_openeth(Esp32SocState *ss)
