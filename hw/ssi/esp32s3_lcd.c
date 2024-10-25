@@ -100,7 +100,7 @@ static void esp32s3_lcd_write(void *opaque, hwaddr addr,
                     }
                     free(buffer);
                 }
-                uint64_t ns_to_timeout = tr_size * 130;
+                uint64_t ns_to_timeout = tr_size * 140;
                 if(tr_size>32) {
                     qemu_irq_lower(s->irq);
                     s->user = wvalue;
