@@ -1,7 +1,10 @@
 #include "qemu/osdep.h"
+#include "qemu/log.h"
+#include "qemu/module.h"
+#include "qemu/error-report.h"
+
 #include "hw/i2c/i2c.h"
 #include "hw/qdev-properties.h"
-#include "qemu/module.h"
 #include "ui/console.h"
 #include "ui/input.h"
 #include <math.h>
@@ -75,7 +78,7 @@ static void mpu6050_update_rotation(MPU6050State *s)
 static void mpu6050_mouse_event(DeviceState *dev, QemuConsole *con, InputEvent *evt)
 {
     MPU6050State *s = MPU6050(dev);
-
+    printf("Event %d %x\n",evt->type,evt->u.abs.data->axis);
     if (evt->type == INPUT_EVENT_KIND_ABS) {
             InputMoveEvent *move = evt->u.abs.data;
             if (move->axis == 0) {
@@ -87,29 +90,26 @@ static void mpu6050_mouse_event(DeviceState *dev, QemuConsole *con, InputEvent *
                 s->yaw = move->value;
             }
             mpu6050_update_rotation(s);
-        /*
-        int dx = input_event_get_rel_value(evt, INPUT_AXIS_X);
-        int dy = input_event_get_rel_value(evt, INPUT_AXIS_Y);
-        if (dx || dy) {
-            mpu6050_update_rotation(s, dy, dx);
-        }
-        */
+        
     }
 }
+
 
 // I2C send: register write operation (single byte)
 static int mpu6050_i2c_send(I2CSlave *i2c, uint8_t data)
 {
     MPU6050State *s = (MPU6050State *)i2c;
 
+    
     // If this is the first byte, it's the register address
     if (s->selected_reg == 0) {
         s->selected_reg = data;
     } else {
         // Subsequent bytes are written to the selected register
         s->regs[s->selected_reg++] = data;
-    }
 
+    }
+ //   printf("send %x\n",data);
     return 0;
 }
 
@@ -118,7 +118,6 @@ static uint8_t mpu6050_i2c_recv(I2CSlave *i2c)
 {
     MPU6050State *s = (MPU6050State *)i2c;
     uint8_t data = 0;
-
     switch (s->selected_reg) {
         case 0x3B: // ACCEL_XOUT_H
             data = (s->accel_data[0] >> 8) & 0xFF;
@@ -172,6 +171,8 @@ static uint8_t mpu6050_i2c_recv(I2CSlave *i2c)
             data = s->regs[s->selected_reg++];
             break;
     }
+ //   printf("recv %x\n",data);
+
 
     return data;
 }
@@ -194,26 +195,94 @@ static const GraphicHwOps mpu6050_ops = {
 };
 static QemuInputHandler event_handler = {
     .name  = "MPU6050 events",
-    .mask  =  INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_ABS,
+    .mask  = INPUT_EVENT_MASK_KEY/* | INPUT_EVENT_MASK_BTN | INPUT_EVENT_MASK_ABS*/,
     .event = mpu6050_mouse_event,
 };
+
+static void mpu6050_reset(DeviceState *dev)
+{
+    printf("mpu6050 reset\n");
+    QemuInputHandlerState *is=qemu_input_handler_register(dev, &event_handler);
+    qemu_input_handler_bind(is,"mpu6050",0,0);
+
+}
+static int mpu6050_event(I2CSlave *i2c, enum i2c_event event)
+{
+    MPU6050State *s = MPU6050(i2c);
+//    printf("mpu6050 event %x %x\n",s->pitch, event);
+    s->selected_reg=0;
+    return 0;
+}
+/*
+static void mpu6050_mouse_event(void *opaque,
+                int x, int y, int z, int buttons_state)
+{
+    MPU6050State *s = opaque;
+    printf("Event %d %d %d %d\n",x, y, z,buttons_state );
+    
+    int p = s->pressure;
+
+    if (buttons_state) {
+        s->x = x;
+        s->y = y;
+    }
+    s->pressure = !!buttons_state;
+
+
+}
+
+*/
+
+static void vnc_dpy_switch(DisplayChangeListener *dcl,
+                           DisplaySurface *surface) {
+                        printf("dpy_switch\n");
+}
+
+static void vnc_mouse_set(DisplayChangeListener *dcl,
+                          int x, int y, int visible)
+{
+    printf("mouse %d %d %d\n",x,y,visible);
+}
+
+static const DisplayChangeListenerOps dcl_ops = {
+    .dpy_name             = "mpu6050",
+ //   .dpy_refresh          = vnc_refresh,
+ //   .dpy_gfx_update       = vnc_dpy_update,
+    .dpy_gfx_switch       = vnc_dpy_switch,
+ //   .dpy_gfx_check_format = qemu_pixman_check_format,
+    .dpy_mouse_set        = vnc_mouse_set,
+  //  .dpy_cursor_define    = vnc_dpy_cursor_define,
+};
+
+static  DisplayChangeListener dcl = {
+    .ops=&dcl_ops
+};
+
 static void mpu6050_realize(DeviceState *dev, Error **errp) {
+    printf("mpu6050_realize\n");
     I2CSlave *i2c = I2C_SLAVE(dev);
     MPU6050State *s = MPU6050(i2c);
+    QemuInputHandlerState *is=qemu_input_handler_register(dev, &event_handler);
     s->con=graphic_console_init(dev, 0, &mpu6050_ops, s);
     qemu_console_resize(s->con,128, 128);
     s->data=surface_data(qemu_console_surface(s->con));
-    qemu_input_handler_register(dev, &event_handler);
+    qemu_input_handler_bind(is,"mpu6050",0,0);
+    dcl.con=s->con;
+
+    register_displaychangelistener(&dcl);
 }
 // MPU6050 class initialization function
 static void mpu6050_class_init(ObjectClass *klass, void *data)
 {
     I2CSlaveClass *sc = I2C_SLAVE_CLASS(klass);
     DeviceClass *dc = DEVICE_CLASS(klass);
+    dc->reset = mpu6050_reset;
+    sc->event = mpu6050_event;
     sc->send = mpu6050_i2c_send;
     sc->recv = mpu6050_i2c_recv;
     dc->realize = mpu6050_realize;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
+    //set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 // Register the MPU6050 device type
