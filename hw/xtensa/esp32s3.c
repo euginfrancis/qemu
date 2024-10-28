@@ -51,6 +51,7 @@
 #include "hw/misc/esp32s3_rng.h"
 #include "hw/misc/esp32_wifi.h"
 #include "hw/misc/esp32_mcpwm.h"
+#include "hw/i2c/esp32_i2c.h"
 
 
 #include "hw/misc/esp32_ana.h"
@@ -144,6 +145,7 @@ typedef struct Esp32s3SocState {
     ESP32C3EfuseState efuse;
     ESP32S3ClockState clock;
     ESP32S3GdmaState gdma;
+    
     ESP32S3ShaState sha;
     ESP32S3AesState aes;
     ESP32S3RsaState rsa;
@@ -158,6 +160,7 @@ typedef struct Esp32s3SocState {
     Esp32McpwmState mcpwm0;
     Esp32McpwmState mcpwm1;
     Esp32S3SensState sens;
+    Esp32I2CState i2c[2];
 
     ESP32S3XtsAesState xts_aes;
     ESP32C3TimgState timg[2];
@@ -236,6 +239,8 @@ static void esp32s3_soc_reset(DeviceState *dev)
         device_cold_reset(DEVICE(&s->spi1));
         device_cold_reset(DEVICE(&s->timg[0]));
         device_cold_reset(DEVICE(&s->timg[1]));
+        device_cold_reset(DEVICE(&s->i2c[0]));
+        device_cold_reset(DEVICE(&s->i2c[1]));
     }
     if (s->requested_reset & ESP32S3_SOC_RESET_PROCPU) {
         xtensa_select_static_vectors(&s->cpu[0].env, s->rtc_cntl.stat_vector_sel[0]);
@@ -748,6 +753,8 @@ static void esp32s3_machine_init(MachineState *machine)
     object_initialize_child(OBJECT(ss), "mcpwm0", &ss->mcpwm0, TYPE_ESP32_MCPWM);
     object_initialize_child(OBJECT(ss), "mcpwm1", &ss->mcpwm1, TYPE_ESP32_MCPWM);
     object_initialize_child(OBJECT(ss), "sens", &ss->sens, TYPE_ESP32S3_SENS);
+    object_initialize_child(OBJECT(ss), "i2c0", &ss->i2c[0], TYPE_ESP32_I2C);
+    object_initialize_child(OBJECT(ss), "i2c1", &ss->i2c[1], TYPE_ESP32_I2C);
 
     if(qemu_find_nic_info(TYPE_ESP32_WIFI, false, NULL)!=NULL)
             object_initialize_child(OBJECT(ss), "wifi", &ss->wifi, TYPE_ESP32_WIFI);
@@ -887,6 +894,19 @@ static void esp32s3_machine_init(MachineState *machine)
         qdev_realize(DEVICE(&ss->sens), &ss->periph_bus, &error_fatal);
         esp32s3_soc_add_periph_device(sys_mem, &ss->sens, DR_REG_SENS_BASE);
 
+    }
+
+    {
+        const hwaddr i2c_base[] = {
+            DR_REG_I2C_EXT_BASE, DR_REG_I2C1_EXT_BASE
+        };
+        for (int i = 0; i < ESP32S3_I2C_COUNT; i++) {
+            qdev_realize(DEVICE(&ss->i2c[i]), &ss->periph_bus, &error_fatal);
+            esp32s3_soc_add_periph_device(sys_mem, &ss->i2c[i], i2c_base[i]);
+            sysbus_connect_irq(SYS_BUS_DEVICE(&ss->i2c[i]), 0,
+                           qdev_get_gpio_in(intmatrix_dev, ETS_I2C_EXT0_INTR_SOURCE + i));
+
+        }
     }
 
     {
