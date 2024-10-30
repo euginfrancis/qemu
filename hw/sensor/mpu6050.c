@@ -172,7 +172,7 @@ static uint8_t mpu6050_i2c_recv(I2CSlave *i2c)
             data = s->regs[s->selected_reg++];
             break;
     }
-    printf("recv %x %x\n",s->selected_reg,data);
+    printf("recv %x %x\n",s->selected_reg-1,data);
 
 
     return data;

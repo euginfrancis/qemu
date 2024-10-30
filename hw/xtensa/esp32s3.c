@@ -342,6 +342,14 @@ static void esp32s3_machine_init_psram(Esp32s3SocState *ss, uint32_t size_mbytes
     printf("Added %dM PSRAM\n",size_mbytes);
     memory_region_init_ram(&ss->cache.psram, NULL, "esp32s3.psram_mem", size_mbytes*1024*1024, &error_fatal);
 }
+static void esp32_machine_init_i2c(Esp32s3SocState *s)
+{
+    DeviceState *i2c_master = DEVICE(&s->i2c[0]);
+    I2CBus* i2c_bus = I2C_BUS(qdev_get_child_bus(i2c_master, "i2c"));
+    I2CSlave* tmp105 = i2c_slave_create_simple(i2c_bus, "tmp105", 0x48);
+    object_property_set_int(OBJECT(tmp105), "temperature", 25 * 1000, &error_fatal);
+    i2c_slave_create_simple(i2c_bus, "mpu6050", 0x68);
+}
 
 static void esp32s3_init_openeth(Esp32s3SocState *ms)
 {
@@ -901,7 +909,7 @@ static void esp32s3_machine_init(MachineState *machine)
             DR_REG_I2C_EXT_BASE, DR_REG_I2C1_EXT_BASE
         };
         for (int i = 0; i < ESP32S3_I2C_COUNT; i++) {
-            qdev_realize(DEVICE(&ss->i2c[i]), &ss->periph_bus, &error_fatal);
+            qdev_realize(DEVICE(&ss->i2c[i]), sysbus_get_default(), &error_fatal);
             esp32s3_soc_add_periph_device(sys_mem, &ss->i2c[i], i2c_base[i]);
             sysbus_connect_irq(SYS_BUS_DEVICE(&ss->i2c[i]), 0,
                            qdev_get_gpio_in(intmatrix_dev, ETS_I2C_EXT0_INTR_SOURCE + i));
@@ -950,7 +958,7 @@ static void esp32s3_machine_init(MachineState *machine)
                            qdev_get_gpio_in(intmatrix_dev, ETS_LCD_CAM_INTR_SOURCE));
 
     }
-
+   
         /* Initialize OpenCores Ethernet controller now sicne it requires the interrupt matrix */
     esp32s3_init_openeth(ss);
 
@@ -972,6 +980,7 @@ static void esp32s3_machine_init(MachineState *machine)
     ss->lcd.cmd_gpio=qdev_get_gpio_in_named(disp, "cmd", 0);
 //    qemu_set_irq(qdev_get_gpio_in_named(disp, "backlight", 0),1);
    
+    esp32_machine_init_i2c(ss);
 
 
     qdev_connect_gpio_out_named(DEVICE(&ss->gpio), ESP32_GPIOS, 38, qdev_get_gpio_in_named(disp, "backlight", 0));

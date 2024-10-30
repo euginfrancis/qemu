@@ -178,7 +178,10 @@ static void esp32_i2c_do_transaction(Esp32I2CState * s)
     for (int i_cmd = 0; i_cmd < ESP32_I2C_CMD_COUNT && !stop_or_end; ++i_cmd) {
         uint32_t cmd = s->cmd_reg[i_cmd];
         char opcode = FIELD_EX32(cmd, I2C_CMD, OPCODE);
+        if(opcode==2) opcode=3;
+        else if(opcode==3) opcode=2;
         switch (opcode) {
+            case 6:
             case I2C_OPCODE_RSTART:
                 i2c_end_transfer(s->bus);
                 s->trans_ongoing = false;
