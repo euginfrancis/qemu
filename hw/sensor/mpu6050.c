@@ -38,10 +38,9 @@ static void mpu6050_draw(MPU6050State *s)
     // Draw a simple representation of the board (as a rectangle)
     int cx = surface_width(surface) / 2;
     int cy = surface_height(surface) / 2;
-    int size = 100;
+    int size = 64;
     int offset_x = size * sin(s->yaw * M_PI / 180);
     int offset_y = size * cos(s->pitch * M_PI / 180);
-
 
 
     s->data[(cy+offset_y)*surface_width(surface)+cx+offset_x]=0xffffffff;
@@ -50,6 +49,7 @@ static void mpu6050_draw(MPU6050State *s)
   //  pixman_fill(surface, cx - offset_x, cy - offset_y, size, size, 0xFF0000); // Red rectangle
   //  dpy_gfx_update(con,0,0,);
 //    qemu_console_refresh(con);
+    s->redraw=1;
 }
 
 // Update the rotation and accelerometer/gyroscope data
@@ -70,6 +70,7 @@ static void mpu6050_update_rotation(MPU6050State *s)
     s->gyro_data[1] = s->delta_yaw * 131;    // Simulate gyroscope yaw
     s->gyro_data[2] = 0;                  // No roll in this simple simulation
 
+    printf("%d\n",s->accel_data[0]);
     // Redraw the MPU6050 board representation
     mpu6050_draw(s);
 }
@@ -83,14 +84,14 @@ static void mpu6050_mouse_event(DeviceState *dev, QemuConsole *con, InputEvent *
             InputMoveEvent *move = evt->u.abs.data;
             if (move->axis == 0) {
                 s->delta_pitch=s->pitch-move->value;
-                s->pitch = move->value;
+                s->pitch = (360*move->value)/32768;
             }
             if (move->axis == 1) {
                 s->delta_yaw=s->yaw-move->value;
-                s->yaw = move->value;
+                s->yaw = (360*move->value)/32768;
             }
+            printf("Event %d %d\n",s->pitch,s->yaw);
             mpu6050_update_rotation(s);
-        
     }
 }
 
@@ -109,7 +110,7 @@ static int mpu6050_i2c_send(I2CSlave *i2c, uint8_t data)
         s->regs[s->selected_reg++] = data;
 
     }
- //   printf("send %x\n",data);
+    printf("send %x %x\n",data,s->selected_reg);
     return 0;
 }
 
@@ -171,7 +172,7 @@ static uint8_t mpu6050_i2c_recv(I2CSlave *i2c)
             data = s->regs[s->selected_reg++];
             break;
     }
- //   printf("recv %x\n",data);
+    printf("recv %x %x\n",s->selected_reg,data);
 
 
     return data;
@@ -209,8 +210,9 @@ static void mpu6050_reset(DeviceState *dev)
 static int mpu6050_event(I2CSlave *i2c, enum i2c_event event)
 {
     MPU6050State *s = MPU6050(i2c);
-//    printf("mpu6050 event %x %x\n",s->pitch, event);
-    s->selected_reg=0;
+   // printf("mpu6050 event %x %x\n",s->pitch, event);
+    if(event==I2C_START_SEND)
+        s->selected_reg=0;
     return 0;
 }
 
