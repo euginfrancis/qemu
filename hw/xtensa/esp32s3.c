@@ -770,6 +770,8 @@ static void esp32s3_machine_init(MachineState *machine)
     // these peripherals need to know which device we are
     ss->wifi.iss3=1;
     ss->ana.iss3=1;
+    ss->i2c[0].iss3=1;
+    ss->i2c[1].iss3=1;
 
     DeviceState* intmatrix_dev = DEVICE(&ss->intmatrix);
     {

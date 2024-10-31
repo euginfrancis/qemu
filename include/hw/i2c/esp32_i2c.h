@@ -24,6 +24,7 @@ typedef struct Esp32I2CState {
     Fifo8 rx_fifo;
     Fifo8 tx_fifo;
     bool trans_ongoing;
+    bool iss3;
 
     uint32_t ctr_reg;
     uint32_t timeout_reg;

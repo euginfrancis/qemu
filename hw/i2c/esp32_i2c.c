@@ -4,6 +4,7 @@
 #include "qemu/error-report.h"
 #include "hw/i2c/esp32_i2c.h"
 #include "hw/irq.h"
+#include "hw/qdev-properties.h"
 
 static void esp32_i2c_do_transaction(Esp32I2CState * s);
 static void esp32_i2c_update_irq(Esp32I2CState * s);
@@ -59,8 +60,8 @@ static uint64_t esp32_i2c_read(void * opaque, hwaddr addr, unsigned int size)
         return esp32_i2c_get_status_reg(s);
     case A_I2C_FIFO_DATA: {
         if (fifo8_num_used(&s->rx_fifo) == 0) {
-            error_report("esp32_i2c: read I2C FIFO while it is empty");
-            return 0xee;
+    //        error_report("esp32_i2c: read I2C FIFO while it is empty");
+            return 0x0;
         }
         uint8_t res = fifo8_pop(&s->rx_fifo);
         return res;
@@ -175,13 +176,12 @@ static void esp32_i2c_write(void * opaque, hwaddr addr, uint64_t value, unsigned
 static void esp32_i2c_do_transaction(Esp32I2CState * s)
 {
     bool stop_or_end = false;
+    int s3lookup[]={-1,I2C_OPCODE_WRITE,I2C_OPCODE_STOP,I2C_OPCODE_READ,I2C_OPCODE_END,-1,I2C_OPCODE_RSTART};
     for (int i_cmd = 0; i_cmd < ESP32_I2C_CMD_COUNT && !stop_or_end; ++i_cmd) {
         uint32_t cmd = s->cmd_reg[i_cmd];
         char opcode = FIELD_EX32(cmd, I2C_CMD, OPCODE);
-        if(opcode==2) opcode=3;
-        else if(opcode==3) opcode=2;
+        if(s->iss3 && opcode<7) opcode=s3lookup[(int)opcode]; 
         switch (opcode) {
-            case 6:
             case I2C_OPCODE_RSTART:
                 i2c_end_transfer(s->bus);
                 s->trans_ongoing = false;
@@ -264,10 +264,16 @@ static void esp32_i2c_init(Object * obj)
     fifo8_create(&s->rx_fifo, ESP32_I2C_FIFO_LENGTH);
 }
 
+static Property i2c_properties[] = {
+    DEFINE_PROP_BOOL("iss3",Esp32I2CState,iss3,false),
+    DEFINE_PROP_END_OF_LIST(),
+};
+
 static void esp32_i2c_class_init(ObjectClass * klass, void * data)
 {
     DeviceClass * dc = DEVICE_CLASS(klass);
     dc->reset = esp32_i2c_reset;
+    device_class_set_props(dc, i2c_properties);
 }
 
 static const TypeInfo esp32_i2c_type_info = {

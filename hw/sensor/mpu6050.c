@@ -8,6 +8,7 @@
 #include "ui/console.h"
 #include "ui/input.h"
 #include <math.h>
+#include "qemu/timer.h"
 
 
 struct MPU6050State {
@@ -21,10 +22,12 @@ struct MPU6050State {
     int pitch, yaw;         // Rotation state
     int delta_pitch, delta_yaw;
     bool redraw;
+    QEMUTimer timer;
 };
 
 #define TYPE_MPU6050 "mpu6050"
 OBJECT_DECLARE_SIMPLE_TYPE(MPU6050State, MPU6050)
+
 
 // Draw a simple representation of the MPU6050 (or system it's attached to)
 static void mpu6050_draw(MPU6050State *s)
@@ -52,6 +55,12 @@ static void mpu6050_draw(MPU6050State *s)
     s->redraw=1;
 }
 
+static int randomnum(void) {
+    int r=rand()%65535;
+    r=sqrt(r);
+    if(rand()%2) r=-r;
+    return r;
+}
 // Update the rotation and accelerometer/gyroscope data
 static void mpu6050_update_rotation(MPU6050State *s)
 {
@@ -62,17 +71,27 @@ static void mpu6050_update_rotation(MPU6050State *s)
     if (s->yaw > 360) s->yaw -= 360;
 
     // Update accelerometer and gyroscope data
-    s->accel_data[0] = (int16_t)(sin(s->pitch * M_PI / 180) * 16384);
-    s->accel_data[1] = (int16_t)(sin(s->yaw * M_PI / 180) * 16384);
-    s->accel_data[2] = (int16_t)(cos(s->pitch * M_PI / 180) * 16384);
+    s->accel_data[0] = (int16_t)(sin(s->pitch * M_PI / 180) * 16384)+randomnum();
+    s->accel_data[1] = (int16_t)(sin(s->yaw * M_PI / 180) * 16384)+randomnum();
+    s->accel_data[2] = (int16_t)(cos(s->pitch * M_PI / 180) * 16384)+randomnum();
 
     s->gyro_data[0] = s->delta_pitch * 131;  // Simulate gyroscope pitch
     s->gyro_data[1] = s->delta_yaw * 131;    // Simulate gyroscope yaw
     s->gyro_data[2] = 0;                  // No roll in this simple simulation
 
-    printf("%d\n",s->accel_data[0]);
+    s->delta_pitch = 0;
+    s->delta_yaw = 0;
+
+    //printf("%d\n",s->accel_data[0]);
     // Redraw the MPU6050 board representation
     mpu6050_draw(s);
+}
+
+static void timer_cb(void *v) {
+    MPU6050State *s=(MPU6050State *)v;
+    mpu6050_update_rotation(s);
+    uint64_t now=qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    timer_mod_ns(&s->timer, now + 100000000);
 }
 
 // Handle mouse movement events for rotating the device
@@ -202,15 +221,13 @@ static QemuInputHandler event_handler = {
 
 static void mpu6050_reset(DeviceState *dev)
 {
-    printf("mpu6050 reset\n");
-  //  QemuInputHandlerState *is=qemu_input_handler_register(dev, &event_handler);
-  //  qemu_input_handler_bind(is,"mpu6050",0,0);
-
+    MPU6050State *s = MPU6050(dev);
+//    printf("mpu6050 reset\n");
+    s->selected_reg=0;
 }
 static int mpu6050_event(I2CSlave *i2c, enum i2c_event event)
 {
     MPU6050State *s = MPU6050(i2c);
-   // printf("mpu6050 event %x %x\n",s->pitch, event);
     if(event==I2C_START_SEND)
         s->selected_reg=0;
     return 0;
@@ -226,6 +243,9 @@ static void mpu6050_realize(DeviceState *dev, Error **errp) {
     qemu_console_resize(s->con,128, 128);
     s->data=surface_data(qemu_console_surface(s->con));
     qemu_input_handler_bind(is,DEVICE(s)->id,0,errp);
+    int64_t now=qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+    timer_init_ns(&s->timer,QEMU_CLOCK_VIRTUAL, timer_cb,s);
+    timer_mod_ns(&s->timer, now + 100000000);
 }
 // MPU6050 class initialization function
 static void mpu6050_class_init(ObjectClass *klass, void *data)
@@ -238,7 +258,6 @@ static void mpu6050_class_init(ObjectClass *klass, void *data)
     sc->recv = mpu6050_i2c_recv;
     dc->realize = mpu6050_realize;
     set_bit(DEVICE_CATEGORY_DISPLAY, dc->categories);
-    //set_bit(DEVICE_CATEGORY_INPUT, dc->categories);
 }
 
 // Register the MPU6050 device type
@@ -246,7 +265,6 @@ static const TypeInfo mpu6050_info = {
     .name          = "mpu6050",
     .parent        = TYPE_I2C_SLAVE,
     .instance_size = sizeof(MPU6050State),
-   // .instance_init = mpu6050_initfn,
     .class_init    = mpu6050_class_init,
 };
 
