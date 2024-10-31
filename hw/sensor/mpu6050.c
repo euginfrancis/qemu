@@ -22,31 +22,133 @@ struct MPU6050State {
     int pitch, yaw;         // Rotation state
     int delta_pitch, delta_yaw;
     bool redraw;
+    int downx, downy;
+    int down_pitch,down_yaw;
+    bool mousepressed;
     QEMUTimer timer;
 };
 
 #define TYPE_MPU6050 "mpu6050"
 OBJECT_DECLARE_SIMPLE_TYPE(MPU6050State, MPU6050)
 
+#define WIDTH 200
+#define HEIGHT 200
+#define SQUARE_SIZE 128
 
+// Convert degrees to radians
+#define DEG_TO_RAD(angle) ((angle) * M_PI / 180.0)
+
+// Struct for 3D points
+typedef struct {
+    float x, y, z;
+} Vec3;
+
+// Struct for 2D points
+typedef struct {
+    int x, y;
+} Vec2;
+
+// Rotate a 3D point by pitch and yaw
+static Vec3 rotate_point(Vec3 point, float pitch, float yaw) {
+    // Apply yaw rotation (rotation around the Y-axis)
+    float cos_yaw = cos(DEG_TO_RAD(yaw));
+    float sin_yaw = sin(DEG_TO_RAD(yaw));
+    float x = cos_yaw * point.x - sin_yaw * point.z;
+    float z = sin_yaw * point.x + cos_yaw * point.z;
+
+    // Apply pitch rotation (rotation around the X-axis)
+    float cos_pitch = cos(DEG_TO_RAD(pitch));
+    float sin_pitch = sin(DEG_TO_RAD(pitch));
+    float y = cos_pitch * point.y - sin_pitch * z;
+    z = sin_pitch * point.y + cos_pitch * z;
+
+    return (Vec3){x, y, z};
+}
+// Project a 3D point onto the 2D screen
+static Vec2 project_point(Vec3 point) {
+    // Simple perspective projection
+    float fov = 300.0;  // Field of view scaling factor
+    int screen_x = (int)(WIDTH / 2 + fov * point.x / (point.z + fov));
+    int screen_y = (int)(HEIGHT / 2 - fov * point.y / (point.z + fov));
+    return (Vec2){screen_x, screen_y};
+}
+
+// Draw a filled 3D square with texture coordinates onto the 2D buffer
+static void draw_filled_square_with_uv(uint32_t *buffer, float pitch, float yaw, uint32_t color) {
+    memset(buffer, 0, WIDTH * HEIGHT * sizeof(uint32_t));  // Clear the buffer
+
+    // Define the vertices of the square in 3D space (centered at origin)
+    Vec3 vertices[4] = {
+        {-SQUARE_SIZE / 2, -SQUARE_SIZE / 2, 0},
+        { SQUARE_SIZE / 2, -SQUARE_SIZE / 2, 0},
+        { SQUARE_SIZE / 2,  SQUARE_SIZE / 2, 0},
+        {-SQUARE_SIZE / 2,  SQUARE_SIZE / 2, 0}
+    };
+
+    // Rotate and project each vertex
+    Vec2 projected[4];
+    int min_x = WIDTH, max_x = 0, min_y = HEIGHT, max_y = 0;
+    for (int i = 0; i < 4; i++) {
+        Vec3 rotated = rotate_point(vertices[i], pitch, yaw);
+        projected[i] = project_point(rotated);
+
+        // Find the bounding box of the projected square
+        if (projected[i].x < min_x) min_x = projected[i].x;
+        if (projected[i].x > max_x) max_x = projected[i].x;
+        if (projected[i].y < min_y) min_y = projected[i].y;
+        if (projected[i].y > max_y) max_y = projected[i].y;
+    }
+    // Clamp bounding box to buffer dimensions
+    min_x = (min_x < 0) ? 0 : (min_x >= WIDTH ? WIDTH - 1 : min_x);
+    max_x = (max_x < 0) ? 0 : (max_x >= WIDTH ? WIDTH - 1 : max_x);
+    min_y = (min_y < 0) ? 0 : (min_y >= HEIGHT ? HEIGHT - 1 : min_y);
+    max_y = (max_y < 0) ? 0 : (max_y >= HEIGHT ? HEIGHT - 1 : max_y);
+    // Iterate over the bounding box to fill the square
+    for (int y = min_y; y <= max_y; y++) {
+        for (int x = min_x; x <= max_x; x++) {
+            Vec2 p = {x, y};
+
+            // Check if the point is within the projected square (assuming convex shape)
+            int inside = 1;
+            for (int i = 0; i < 4; i++) {
+                Vec2 a = projected[i];
+                Vec2 b = projected[(i + 1) % 4];
+                int cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+                if (cross < 0) {
+                    inside = 0;
+                    break;
+                }
+            }
+
+            if (inside) {
+                // Calculate the normalized UV coordinates
+               // float u = (float)(x - min_x) / (max_x - min_x);
+               // float v = (float)(y - min_y) / (max_y - min_y);
+
+                // Example: Fill the buffer with color (can replace with texture lookup using u, v)
+                buffer[y * WIDTH + x] = color;
+
+                // Optional: Print UV coordinates for debugging
+              //  printf("Pixel (%d, %d): u = %f, v = %f\n", x, y, u, v);
+            }
+        }
+    }
+}
 // Draw a simple representation of the MPU6050 (or system it's attached to)
 static void mpu6050_draw(MPU6050State *s)
 {
-    QemuConsole *con = s->con;
-    DisplaySurface *surface = qemu_console_surface(con);
+ //   QemuConsole *con = s->con;
+   // DisplaySurface *surface = qemu_console_surface(con);
 
     // Clear screen
   //  pixman_fill(qemu_console_surface(con), 0, 0, surface_width(surface), surface_height(surface), 0xFFFFFF);
 
-    // Draw a simple representation of the board (as a rectangle)
-    int cx = surface_width(surface) / 2;
-    int cy = surface_height(surface) / 2;
-    int size = 64;
-    int offset_x = size * sin(s->yaw * M_PI / 180);
-    int offset_y = size * cos(s->pitch * M_PI / 180);
+   
 
+    draw_filled_square_with_uv(s->data,s->pitch,s->yaw,-1);
+//    s->data[(cy+offset_y)*surface_width(surface)+cx+offset_x]=0xffffffff;
 
-    s->data[(cy+offset_y)*surface_width(surface)+cx+offset_x]=0xffffffff;
+   // for(int i)
 
     // Draw the board (red rectangle)
   //  pixman_fill(surface, cx - offset_x, cy - offset_y, size, size, 0xFF0000); // Red rectangle
@@ -61,11 +163,9 @@ static int randomnum(void) {
     if(rand()%2) r=-r;
     return r;
 }
+
 // Update the rotation and accelerometer/gyroscope data
-static void mpu6050_update_rotation(MPU6050State *s)
-{
-
-
+static void mpu6050_update_rotation(MPU6050State *s) {
     // Limit the pitch and yaw
     if (s->pitch > 360) s->pitch -= 360;
     if (s->yaw > 360) s->yaw -= 360;
@@ -98,19 +198,32 @@ static void timer_cb(void *v) {
 static void mpu6050_mouse_event(DeviceState *dev, QemuConsole *con, InputEvent *evt)
 {
     MPU6050State *s = MPU6050(dev);
-    printf("Event %d %x\n",evt->type,evt->u.abs.data->axis);
-    if (evt->type == INPUT_EVENT_KIND_ABS) {
-            InputMoveEvent *move = evt->u.abs.data;
-            if (move->axis == 0) {
-                s->delta_pitch=s->pitch-move->value;
-                s->pitch = (360*move->value)/32768;
-            }
-            if (move->axis == 1) {
-                s->delta_yaw=s->yaw-move->value;
-                s->yaw = (360*move->value)/32768;
-            }
-            printf("Event %d %d\n",s->pitch,s->yaw);
-            mpu6050_update_rotation(s);
+//    printf("Event %d %x\n",evt->type,evt->u.abs.data->axis);
+    if (evt->type == INPUT_EVENT_KIND_BTN) {
+        InputBtnEvent *btn=evt->u.btn.data;
+        s->mousepressed=btn->down;
+        if(btn->down) {
+            s->down_pitch=s->pitch;
+            s->down_yaw=s->yaw;
+            s->downx=-1;
+            s->downy=-1;
+        }
+    }
+    if (evt->type == INPUT_EVENT_KIND_ABS && s->mousepressed) {
+
+        InputMoveEvent *move = evt->u.abs.data;
+        if (move->axis == 1) {
+            s->delta_pitch=s->pitch-move->value;
+            if(s->downx==-1) s->downx=move->value;
+            s->pitch = s->down_pitch+(360*(s->downx-move->value))/32768;
+        }
+        if (move->axis == 0) {
+            s->delta_yaw=s->yaw-move->value;
+            if(s->downy==-1) s->downy=move->value;
+            s->yaw = (360*(s->downy-move->value))/32768;
+        }
+        printf("Event %d %d\n",s->pitch,s->yaw);
+        mpu6050_update_rotation(s);
     }
 }
 
@@ -129,7 +242,7 @@ static int mpu6050_i2c_send(I2CSlave *i2c, uint8_t data)
         s->regs[s->selected_reg++] = data;
 
     }
-    printf("send %x %x\n",data,s->selected_reg);
+    //printf("send %x %x\n",data,s->selected_reg);
     return 0;
 }
 
@@ -191,7 +304,7 @@ static uint8_t mpu6050_i2c_recv(I2CSlave *i2c)
             data = s->regs[s->selected_reg++];
             break;
     }
-    printf("recv %x %x\n",s->selected_reg-1,data);
+    //printf("recv %x %x\n",s->selected_reg-1,data);
 
 
     return data;
@@ -201,7 +314,7 @@ static void mpu6050_update_display(void *opaque) {
     if (!s->redraw) return;
     s->redraw = 0;
     mpu6050_draw(s);
-    dpy_gfx_update(s->con, 0, 0, 128, 128);
+    dpy_gfx_update(s->con, 0, 0, 200, 200);
 }
 
 static void mpu6050_invalidate_display(void *opaque) {
@@ -224,6 +337,7 @@ static void mpu6050_reset(DeviceState *dev)
     MPU6050State *s = MPU6050(dev);
 //    printf("mpu6050 reset\n");
     s->selected_reg=0;
+    s->pitch=180;
 }
 static int mpu6050_event(I2CSlave *i2c, enum i2c_event event)
 {
@@ -234,13 +348,13 @@ static int mpu6050_event(I2CSlave *i2c, enum i2c_event event)
 }
 
 static void mpu6050_realize(DeviceState *dev, Error **errp) {
-    printf("mpu6050_realize\n");
+   // printf("mpu6050_realize\n");
     I2CSlave *i2c = I2C_SLAVE(dev);
     MPU6050State *s = MPU6050(i2c);
     DEVICE(s)->id=(char *)"mpu6050";
     QemuInputHandlerState *is=qemu_input_handler_register(DEVICE(s), &event_handler);
     s->con=graphic_console_init(dev, 0, &mpu6050_ops, s);
-    qemu_console_resize(s->con,128, 128);
+    qemu_console_resize(s->con,200, 200);
     s->data=surface_data(qemu_console_surface(s->con));
     qemu_input_handler_bind(is,DEVICE(s)->id,0,errp);
     int64_t now=qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
