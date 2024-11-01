@@ -9,6 +9,7 @@
 #include "ui/input.h"
 #include <math.h>
 #include "qemu/timer.h"
+#include "mpu6050_image.h"
 
 
 struct MPU6050State {
@@ -87,27 +88,27 @@ static void draw_filled_square_with_uv(uint32_t *buffer, float pitch, float yaw,
 
     // Rotate and project each vertex
     Vec2 projected[4];
-    int min_x = WIDTH, max_x = 0, min_y = HEIGHT, max_y = 0;
+  //  int min_x = WIDTH, max_x = 0, min_y = HEIGHT, max_y = 0;
     for (int i = 0; i < 4; i++) {
         Vec3 rotated = rotate_point(vertices[i], pitch, yaw);
         projected[i] = project_point(rotated);
 
         // Find the bounding box of the projected square
-        if (projected[i].x < min_x) min_x = projected[i].x;
-        if (projected[i].x > max_x) max_x = projected[i].x;
-        if (projected[i].y < min_y) min_y = projected[i].y;
-        if (projected[i].y > max_y) max_y = projected[i].y;
+    //    if (projected[i].x < min_x) min_x = projected[i].x;
+    //    if (projected[i].x > max_x) max_x = projected[i].x;
+    //    if (projected[i].y < min_y) min_y = projected[i].y;
+    //    if (projected[i].y > max_y) max_y = projected[i].y;
     }
     // Clamp bounding box to buffer dimensions
-    min_x = (min_x < 0) ? 0 : (min_x >= WIDTH ? WIDTH - 1 : min_x);
-    max_x = (max_x < 0) ? 0 : (max_x >= WIDTH ? WIDTH - 1 : max_x);
-    min_y = (min_y < 0) ? 0 : (min_y >= HEIGHT ? HEIGHT - 1 : min_y);
-    max_y = (max_y < 0) ? 0 : (max_y >= HEIGHT ? HEIGHT - 1 : max_y);
+    //min_x = (min_x < 0) ? 0 : (min_x >= WIDTH ? WIDTH - 1 : min_x);
+    //max_x = (max_x < 0) ? 0 : (max_x >= WIDTH ? WIDTH - 1 : max_x);
+    //min_y = (min_y < 0) ? 0 : (min_y >= HEIGHT ? HEIGHT - 1 : min_y);
+    //max_y = (max_y < 0) ? 0 : (max_y >= HEIGHT ? HEIGHT - 1 : max_y);
     // Iterate over the bounding box to fill the square
-    for (int y = min_y; y <= max_y; y++) {
-        for (int x = min_x; x <= max_x; x++) {
+    for (int y = 0; y < HEIGHT ; y++) {
+        for (int x = 0; x < WIDTH; x++) {
             Vec2 p = {x, y};
-
+/*
             // Check if the point is within the projected square (assuming convex shape)
             int inside = 1;
             for (int i = 0; i < 4; i++) {
@@ -121,17 +122,38 @@ static void draw_filled_square_with_uv(uint32_t *buffer, float pitch, float yaw,
             }
 
             if (inside) {
+            */
                 // Calculate the normalized UV coordinates
-               // float u = (float)(x - min_x) / (max_x - min_x);
-               // float v = (float)(y - min_y) / (max_y - min_y);
+ 
+               float denom = (float)((projected[1].y - projected[3].y) * (projected[0].x - projected[2].x) + (projected[3].x - projected[1].x) * (projected[0].y - projected[2].y));
+    
+    float wa = ((projected[1].y - projected[3].y) * (p.x - projected[2].x) + (projected[3].x - projected[1].x) * (p.y - projected[2].y)) / denom;
+    float wb = ((projected[3].y - projected[0].y) * (p.x - projected[2].x) + (projected[0].x - projected[3].x) * (p.y - projected[2].y)) / denom;
+    float wc = 1.0f - wa - wb;
 
-                // Example: Fill the buffer with color (can replace with texture lookup using u, v)
-                buffer[y * WIDTH + x] = color;
+    
+    float u =   1-(wb+0.5)*2.0 ;
+    float v =   (wc-0.5)*2.0 ;
+/*
+    if(u<0) u=1-u;
+    if(v<0) v=1-v;
+    if(u>1) u=u-1;
+    if(v>1) v=v-1;
+    */
+        if(u>0 && u<1 && v>0 && v<1) {
+            if(x==100 && y==100)
+            printf("%f %f\n",u,v);
+
+            int offset=((int)(u*255.0)*256+(int)(v*255.0))*4;
+            if(offset>256*256*4) offset=0;
+            buffer[y * WIDTH + x] = *(uint32_t *)(mpu6050_image.pixel_data+offset);
 
                 // Optional: Print UV coordinates for debugging
               //  printf("Pixel (%d, %d): u = %f, v = %f\n", x, y, u, v);
-            }
+   //         }
+   //     }
         }
+    }
     }
 }
 // Draw a simple representation of the MPU6050 (or system it's attached to)
@@ -169,7 +191,8 @@ static void mpu6050_update_rotation(MPU6050State *s) {
     // Limit the pitch and yaw
     if (s->pitch > 360) s->pitch -= 360;
     if (s->yaw > 360) s->yaw -= 360;
-
+    if (s->pitch < 0) s->pitch += 360;
+    if (s->yaw <0 ) s->yaw += 360;
     // Update accelerometer and gyroscope data
     s->accel_data[0] = (int16_t)(sin(s->pitch * M_PI / 180) * 16384)+randomnum();
     s->accel_data[1] = (int16_t)(sin(s->yaw * M_PI / 180) * 16384)+randomnum();
