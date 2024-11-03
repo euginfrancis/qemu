@@ -62,18 +62,22 @@ static Vec3 rotate_point(Vec3 point, float pitch, float yaw) {
     float sin_pitch = sin(DEG_TO_RAD(pitch));
     float y = cos_pitch * point.y - sin_pitch * z;
     z = sin_pitch * point.y + cos_pitch * z;
-
     return (Vec3){x, y, z};
 }
 // Project a 3D point onto the 2D screen
 static Vec2 project_point(Vec3 point) {
     // Simple perspective projection
-    float fov = 300.0;  // Field of view scaling factor
-    int screen_x = (int)(WIDTH / 2 + fov * point.x / (point.z + fov));
-    int screen_y = (int)(HEIGHT / 2 - fov * point.y / (point.z + fov));
-    return (Vec2){screen_x, screen_y};
+    float fov = 2000.0;  // Field of view scaling factor
+    return (Vec2){WIDTH / 2 + fov * point.x / (point.z + fov),
+        HEIGHT / 2 - fov * point.y / (point.z + fov)};
 }
-
+// Calculate barycentric coordinates
+inline static void calculate_barycentric(Vec2 p, Vec2 v0, Vec2 v1, Vec2 v2, float* u, float* v, float* w) {
+    float denom = (v1.y - v2.y) * (v0.x - v2.x) + (v2.x - v1.x) * (v0.y - v2.y);
+    *u = ((v1.y - v2.y) * (p.x - v2.x) + (v2.x - v1.x) * (p.y - v2.y)) / denom;
+    *v = ((v2.y - v0.y) * (p.x - v2.x) + (v0.x - v2.x) * (p.y - v2.y)) / denom;
+    *w = 1.0f - *u - *v;
+}
 // Draw a filled 3D square with texture coordinates onto the 2D buffer
 static void draw_filled_square_with_uv(uint32_t *buffer, float pitch, float yaw, uint32_t color) {
     memset(buffer, 0, WIDTH * HEIGHT * sizeof(uint32_t));  // Clear the buffer
@@ -88,94 +92,51 @@ static void draw_filled_square_with_uv(uint32_t *buffer, float pitch, float yaw,
 
     // Rotate and project each vertex
     Vec2 projected[4];
-  //  int min_x = WIDTH, max_x = 0, min_y = HEIGHT, max_y = 0;
     for (int i = 0; i < 4; i++) {
         Vec3 rotated = rotate_point(vertices[i], pitch, yaw);
         projected[i] = project_point(rotated);
-
-        // Find the bounding box of the projected square
-    //    if (projected[i].x < min_x) min_x = projected[i].x;
-    //    if (projected[i].x > max_x) max_x = projected[i].x;
-    //    if (projected[i].y < min_y) min_y = projected[i].y;
-    //    if (projected[i].y > max_y) max_y = projected[i].y;
     }
-    // Clamp bounding box to buffer dimensions
-    //min_x = (min_x < 0) ? 0 : (min_x >= WIDTH ? WIDTH - 1 : min_x);
-    //max_x = (max_x < 0) ? 0 : (max_x >= WIDTH ? WIDTH - 1 : max_x);
-    //min_y = (min_y < 0) ? 0 : (min_y >= HEIGHT ? HEIGHT - 1 : min_y);
-    //max_y = (max_y < 0) ? 0 : (max_y >= HEIGHT ? HEIGHT - 1 : max_y);
-    // Iterate over the bounding box to fill the square
+ 
+
     for (int y = 0; y < HEIGHT ; y++) {
         for (int x = 0; x < WIDTH; x++) {
-            Vec2 p = {x, y};
-/*
-            // Check if the point is within the projected square (assuming convex shape)
-            int inside = 1;
-            for (int i = 0; i < 4; i++) {
-                Vec2 a = projected[i];
-                Vec2 b = projected[(i + 1) % 4];
-                int cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
-                if (cross < 0) {
-                    inside = 0;
-                    break;
+            Vec2 p = {x,y};
+            float u,v,w,final_u=-1,final_v=-1;
+            // First triangle (0, 1, 2)
+            calculate_barycentric(p, projected[0], projected[1], projected[2], &u, &v, &w);
+            if (u >= -1 && v >= -1 && w >= -1) {
+                final_u=v+w;
+                final_v=w;
+              //  in_triangle = 1;
+            } else {
+                // Second triangle (2, 3, 0)
+                calculate_barycentric(p, projected[2], projected[3], projected[0], &u, &v, &w);
+                if (u >= 0 && v >= 0 && w >= 0) {
+                    final_u=u;
+                    final_v=u+v;
                 }
             }
-
-            if (inside) {
-            */
-                // Calculate the normalized UV coordinates
- 
-               float denom = (float)((projected[1].y - projected[3].y) * (projected[0].x - projected[2].x) + (projected[3].x - projected[1].x) * (projected[0].y - projected[2].y));
-    
-    float wa = ((projected[1].y - projected[3].y) * (p.x - projected[2].x) + (projected[3].x - projected[1].x) * (p.y - projected[2].y)) / denom;
-    float wb = ((projected[3].y - projected[0].y) * (p.x - projected[2].x) + (projected[0].x - projected[3].x) * (p.y - projected[2].y)) / denom;
-    float wc = 1.0f - wa - wb;
-
-    
-    float u =   1-(wb+0.5)*2.0 ;
-    float v =   (wc-0.5)*2.0 ;
-/*
-    if(u<0) u=1-u;
-    if(v<0) v=1-v;
-    if(u>1) u=u-1;
-    if(v>1) v=v-1;
-    */
-        if(u>0 && u<1 && v>0 && v<1) {
-            if(x==100 && y==100)
-            printf("%f %f\n",u,v);
-
-            int offset=((int)(u*255.0)*256+(int)(v*255.0))*4;
-            if(offset>256*256*4) offset=0;
-            buffer[y * WIDTH + x] = *(uint32_t *)(mpu6050_image.pixel_data+offset);
-
-                // Optional: Print UV coordinates for debugging
-              //  printf("Pixel (%d, %d): u = %f, v = %f\n", x, y, u, v);
-   //         }
-   //     }
+            u=final_u;
+            v=final_v;
+            if(u>=0 && u<=1 && v>=0 && v<=1) {
+                int offset=((int)(u*255.0)*256+(int)(v*255.0))*4;
+                if(offset>256*256*4) offset=0;
+                uint32_t pixel=*(uint32_t *)(mpu6050_image.pixel_data+offset);
+                pixel=((pixel & 0xff0000)>>16) | ((pixel & 0xff)<<16) | (pixel & 0xff00ff00);
+                if(pixel>>24==0xff)
+                    buffer[y * WIDTH + x] = pixel;
+                else buffer[y * WIDTH + x] = 0;
+            }
         }
     }
+    for(int i=0;i<4;i++) {
+         buffer[projected[i].y * WIDTH + projected[i].x] = 0xff<<(i*8) | 0xfff00000;
     }
 }
+
 // Draw a simple representation of the MPU6050 (or system it's attached to)
-static void mpu6050_draw(MPU6050State *s)
-{
- //   QemuConsole *con = s->con;
-   // DisplaySurface *surface = qemu_console_surface(con);
-
-    // Clear screen
-  //  pixman_fill(qemu_console_surface(con), 0, 0, surface_width(surface), surface_height(surface), 0xFFFFFF);
-
-   
-
+static void mpu6050_draw(MPU6050State *s) {
     draw_filled_square_with_uv(s->data,s->pitch,s->yaw,-1);
-//    s->data[(cy+offset_y)*surface_width(surface)+cx+offset_x]=0xffffffff;
-
-   // for(int i)
-
-    // Draw the board (red rectangle)
-  //  pixman_fill(surface, cx - offset_x, cy - offset_y, size, size, 0xFF0000); // Red rectangle
-  //  dpy_gfx_update(con,0,0,);
-//    qemu_console_refresh(con);
     s->redraw=1;
 }
 
@@ -209,13 +170,14 @@ static void mpu6050_update_rotation(MPU6050State *s) {
     // Redraw the MPU6050 board representation
     mpu6050_draw(s);
 }
-
+/*
 static void timer_cb(void *v) {
     MPU6050State *s=(MPU6050State *)v;
     mpu6050_update_rotation(s);
     uint64_t now=qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
     timer_mod_ns(&s->timer, now + 100000000);
 }
+*/
 
 // Handle mouse movement events for rotating the device
 static void mpu6050_mouse_event(DeviceState *dev, QemuConsole *con, InputEvent *evt)
@@ -243,7 +205,7 @@ static void mpu6050_mouse_event(DeviceState *dev, QemuConsole *con, InputEvent *
         if (move->axis == 0) {
             s->delta_yaw=s->yaw-move->value;
             if(s->downy==-1) s->downy=move->value;
-            s->yaw = (360*(s->downy-move->value))/32768;
+            s->yaw =s->down_yaw+ (360*(s->downy-move->value))/32768;
         }
         printf("Event %d %d\n",s->pitch,s->yaw);
         mpu6050_update_rotation(s);
@@ -328,8 +290,8 @@ static uint8_t mpu6050_i2c_recv(I2CSlave *i2c)
             break;
     }
     //printf("recv %x %x\n",s->selected_reg-1,data);
-
-
+    s->redraw=1;
+    mpu6050_update_rotation(s);
     return data;
 }
 static void mpu6050_update_display(void *opaque) {
@@ -360,7 +322,7 @@ static void mpu6050_reset(DeviceState *dev)
     MPU6050State *s = MPU6050(dev);
 //    printf("mpu6050 reset\n");
     s->selected_reg=0;
-    s->pitch=180;
+    s->pitch=0;
 }
 static int mpu6050_event(I2CSlave *i2c, enum i2c_event event)
 {
@@ -380,9 +342,10 @@ static void mpu6050_realize(DeviceState *dev, Error **errp) {
     qemu_console_resize(s->con,200, 200);
     s->data=surface_data(qemu_console_surface(s->con));
     qemu_input_handler_bind(is,DEVICE(s)->id,0,errp);
-    int64_t now=qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    timer_init_ns(&s->timer,QEMU_CLOCK_VIRTUAL, timer_cb,s);
-    timer_mod_ns(&s->timer, now + 100000000);
+    s->redraw=1;
+  //  int64_t now=qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
+  //  timer_init_ns(&s->timer,QEMU_CLOCK_VIRTUAL, timer_cb,s);
+  //  timer_mod_ns(&s->timer, now + 100000000);
 }
 // MPU6050 class initialization function
 static void mpu6050_class_init(ObjectClass *klass, void *data)
