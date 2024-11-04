@@ -66,9 +66,11 @@ static Vec3 rotate_point(Vec3 point, float pitch, float roll) {
 // Project a 3D point onto the 2D screen
 static Vec2 project_point(Vec3 point) {
     // Simple perspective projection
-    float fov = 2000.0;  // Field of view scaling factor
-    return (Vec2){WIDTH / 2 + fov * point.x / (point.z + fov),
-        HEIGHT / 2 - fov * point.y / (point.z + fov)};
+    //float fov = 200.0;  // Field of view scaling factor
+    return (Vec2){WIDTH / 2 +  point.x ,
+        HEIGHT / 2 -  point.y};
+//    return (Vec2){WIDTH / 2 + fov * point.x / (point.z + fov),
+  //      HEIGHT / 2 - fov * point.y / (point.z + fov)};
 }
 // Calculate barycentric coordinates
 inline static void calculate_barycentric(Vec2 p, Vec2 v0, Vec2 v1, Vec2 v2, float* u, float* v, float* w) {
@@ -115,7 +117,14 @@ static void draw_filled_square_with_uv(uint32_t *buffer, float pitch, float roll
                 pixel=((pixel & 0xff0000)>>16) | ((pixel & 0xff)<<16) | (pixel & 0xff00ff00);
                 if(pixel>>24==0xff)
                     buffer[y * WIDTH + x] = pixel;
-                else buffer[y * WIDTH + x] = 0;
+                else {
+                    uint32_t alpha=pixel>>24;
+                    uint32_t r1=(((pixel & 0xff0000) * alpha)>>8)&0xff0000;
+                    uint32_t r2=(((pixel & 0xff00) * alpha)>>8)&0xff00;
+                    uint32_t r3=(((pixel & 0xff) * alpha)>>8)&0xff;
+
+                    buffer[y * WIDTH + x] = 0xff000000 | r1 | r2 | r3;
+                }
             }
         }
     }
