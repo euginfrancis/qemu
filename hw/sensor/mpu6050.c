@@ -20,13 +20,12 @@ struct MPU6050State {
     int16_t gyro_data[3];   // Gyroscope data (x, y, z)
     uint8_t regs[128];      // Register map
     uint8_t selected_reg;   // Register currently selected by the I2C transaction
-    int pitch, yaw;         // Rotation state
-    int delta_pitch, delta_yaw;
+    int pitch, roll;         // Rotation state
+    int delta_pitch, delta_roll;
     bool redraw;
     int downx, downy;
-    int down_pitch,down_yaw;
+    int down_pitch,down_roll;
     bool mousepressed;
-    QEMUTimer timer;
 };
 
 #define TYPE_MPU6050 "mpu6050"
@@ -49,13 +48,13 @@ typedef struct {
     int x, y;
 } Vec2;
 
-// Rotate a 3D point by pitch and yaw
-static Vec3 rotate_point(Vec3 point, float pitch, float yaw) {
-    // Apply yaw rotation (rotation around the Y-axis)
-    float cos_yaw = cos(DEG_TO_RAD(yaw));
-    float sin_yaw = sin(DEG_TO_RAD(yaw));
-    float x = cos_yaw * point.x - sin_yaw * point.z;
-    float z = sin_yaw * point.x + cos_yaw * point.z;
+// Rotate a 3D point by pitch and roll
+static Vec3 rotate_point(Vec3 point, float pitch, float roll) {
+    // Apply roll rotation (rotation around the Y-axis)
+    float cos_roll = cos(DEG_TO_RAD(roll));
+    float sin_roll = sin(DEG_TO_RAD(roll));
+    float x = cos_roll * point.x - sin_roll * point.z;
+    float z = sin_roll * point.x + cos_roll * point.z;
 
     // Apply pitch rotation (rotation around the X-axis)
     float cos_pitch = cos(DEG_TO_RAD(pitch));
@@ -79,7 +78,7 @@ inline static void calculate_barycentric(Vec2 p, Vec2 v0, Vec2 v1, Vec2 v2, floa
     *w = 1.0f - *u - *v;
 }
 // Draw a filled 3D square with texture coordinates onto the 2D buffer
-static void draw_filled_square_with_uv(uint32_t *buffer, float pitch, float yaw, uint32_t color) {
+static void draw_filled_square_with_uv(uint32_t *buffer, float pitch, float roll, uint32_t color) {
     memset(buffer, 0, WIDTH * HEIGHT * sizeof(uint32_t));  // Clear the buffer
 
     // Define the vertices of the square in 3D space (centered at origin)
@@ -93,7 +92,7 @@ static void draw_filled_square_with_uv(uint32_t *buffer, float pitch, float yaw,
     // Rotate and project each vertex
     Vec2 projected[4];
     for (int i = 0; i < 4; i++) {
-        Vec3 rotated = rotate_point(vertices[i], pitch, yaw);
+        Vec3 rotated = rotate_point(vertices[i], pitch, roll);
         projected[i] = project_point(rotated);
     }
  
@@ -102,22 +101,13 @@ static void draw_filled_square_with_uv(uint32_t *buffer, float pitch, float yaw,
         for (int x = 0; x < WIDTH; x++) {
             Vec2 p = {x,y};
             float u,v,w,final_u=-1,final_v=-1;
-            // First triangle (0, 1, 2)
             calculate_barycentric(p, projected[0], projected[1], projected[2], &u, &v, &w);
             if (u >= -1 && v >= -1 && w >= -1) {
                 final_u=v+w;
                 final_v=w;
-              //  in_triangle = 1;
-            } else {
-                // Second triangle (2, 3, 0)
-                calculate_barycentric(p, projected[2], projected[3], projected[0], &u, &v, &w);
-                if (u >= 0 && v >= 0 && w >= 0) {
-                    final_u=u;
-                    final_v=u+v;
-                }
-            }
-            u=final_u;
-            v=final_v;
+            } 
+            u=1-final_v;
+            v=final_u;
             if(u>=0 && u<=1 && v>=0 && v<=1) {
                 int offset=((int)(u*255.0)*256+(int)(v*255.0))*4;
                 if(offset>256*256*4) offset=0;
@@ -129,14 +119,14 @@ static void draw_filled_square_with_uv(uint32_t *buffer, float pitch, float yaw,
             }
         }
     }
-    for(int i=0;i<4;i++) {
-         buffer[projected[i].y * WIDTH + projected[i].x] = 0xff<<(i*8) | 0xfff00000;
-    }
+    // for(int i=0;i<4;i++) {
+    //      buffer[projected[i].y * WIDTH + projected[i].x] = 0xff<<(i*8) | 0xfff00000;
+    // }
 }
 
 // Draw a simple representation of the MPU6050 (or system it's attached to)
 static void mpu6050_draw(MPU6050State *s) {
-    draw_filled_square_with_uv(s->data,s->pitch,s->yaw,-1);
+    draw_filled_square_with_uv(s->data,s->pitch,s->roll,-1);
     s->redraw=1;
 }
 
@@ -149,35 +139,33 @@ static int randomnum(void) {
 
 // Update the rotation and accelerometer/gyroscope data
 static void mpu6050_update_rotation(MPU6050State *s) {
-    // Limit the pitch and yaw
+    // Limit the pitch and roll
     if (s->pitch > 360) s->pitch -= 360;
-    if (s->yaw > 360) s->yaw -= 360;
+    if (s->roll > 360) s->roll -= 360;
     if (s->pitch < 0) s->pitch += 360;
-    if (s->yaw <0 ) s->yaw += 360;
+    if (s->roll <0 ) s->roll += 360;
+
+    int range=(s->regs[0x1c]>>3)&3;
+    float scale=16384.0/(1<<range);
+
     // Update accelerometer and gyroscope data
-    s->accel_data[0] = (int16_t)(sin(s->pitch * M_PI / 180) * 16384)+randomnum();
-    s->accel_data[1] = (int16_t)(sin(s->yaw * M_PI / 180) * 16384)+randomnum();
-    s->accel_data[2] = (int16_t)(cos(s->pitch * M_PI / 180) * 16384)+randomnum();
+    s->accel_data[0] = (int16_t)(-sin(DEG_TO_RAD(s->roll)) * cos(DEG_TO_RAD(s->pitch)) * scale)+randomnum();
+    s->accel_data[1] = (int16_t)(-sin(DEG_TO_RAD(s->pitch)) * scale)+randomnum();
+    s->accel_data[2] = (int16_t)(cos(DEG_TO_RAD(s->roll)) * cos(DEG_TO_RAD(s->pitch)) * scale)+randomnum();
 
     s->gyro_data[0] = s->delta_pitch * 131;  // Simulate gyroscope pitch
-    s->gyro_data[1] = s->delta_yaw * 131;    // Simulate gyroscope yaw
+    s->gyro_data[1] = s->delta_roll * 131;    // Simulate gyroscope roll
     s->gyro_data[2] = 0;                  // No roll in this simple simulation
 
     s->delta_pitch = 0;
-    s->delta_yaw = 0;
+    s->delta_roll = 0;
 
     //printf("%d\n",s->accel_data[0]);
     // Redraw the MPU6050 board representation
     mpu6050_draw(s);
 }
-/*
-static void timer_cb(void *v) {
-    MPU6050State *s=(MPU6050State *)v;
-    mpu6050_update_rotation(s);
-    uint64_t now=qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-    timer_mod_ns(&s->timer, now + 100000000);
-}
-*/
+
+
 
 // Handle mouse movement events for rotating the device
 static void mpu6050_mouse_event(DeviceState *dev, QemuConsole *con, InputEvent *evt)
@@ -189,7 +177,7 @@ static void mpu6050_mouse_event(DeviceState *dev, QemuConsole *con, InputEvent *
         s->mousepressed=btn->down;
         if(btn->down) {
             s->down_pitch=s->pitch;
-            s->down_yaw=s->yaw;
+            s->down_roll=s->roll;
             s->downx=-1;
             s->downy=-1;
         }
@@ -203,11 +191,11 @@ static void mpu6050_mouse_event(DeviceState *dev, QemuConsole *con, InputEvent *
             s->pitch = s->down_pitch+(360*(s->downx-move->value))/32768;
         }
         if (move->axis == 0) {
-            s->delta_yaw=s->yaw-move->value;
+            s->delta_roll=s->roll-move->value;
             if(s->downy==-1) s->downy=move->value;
-            s->yaw =s->down_yaw+ (360*(s->downy-move->value))/32768;
+            s->roll =s->down_roll - (360*(s->downy-move->value))/32768;
         }
-        printf("Event %d %d\n",s->pitch,s->yaw);
+        //printf("Event %d %d\n",s->pitch,s->roll);
         mpu6050_update_rotation(s);
     }
 }
@@ -225,7 +213,6 @@ static int mpu6050_i2c_send(I2CSlave *i2c, uint8_t data)
     } else {
         // Subsequent bytes are written to the selected register
         s->regs[s->selected_reg++] = data;
-
     }
     //printf("send %x %x\n",data,s->selected_reg);
     return 0;
@@ -320,7 +307,6 @@ static QemuInputHandler event_handler = {
 static void mpu6050_reset(DeviceState *dev)
 {
     MPU6050State *s = MPU6050(dev);
-//    printf("mpu6050 reset\n");
     s->selected_reg=0;
     s->pitch=0;
 }
@@ -333,7 +319,6 @@ static int mpu6050_event(I2CSlave *i2c, enum i2c_event event)
 }
 
 static void mpu6050_realize(DeviceState *dev, Error **errp) {
-   // printf("mpu6050_realize\n");
     I2CSlave *i2c = I2C_SLAVE(dev);
     MPU6050State *s = MPU6050(i2c);
     DEVICE(s)->id=(char *)"mpu6050";
@@ -343,9 +328,6 @@ static void mpu6050_realize(DeviceState *dev, Error **errp) {
     s->data=surface_data(qemu_console_surface(s->con));
     qemu_input_handler_bind(is,DEVICE(s)->id,0,errp);
     s->redraw=1;
-  //  int64_t now=qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
-  //  timer_init_ns(&s->timer,QEMU_CLOCK_VIRTUAL, timer_cb,s);
-  //  timer_mod_ns(&s->timer, now + 100000000);
 }
 // MPU6050 class initialization function
 static void mpu6050_class_init(ObjectClass *klass, void *data)
