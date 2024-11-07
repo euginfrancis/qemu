@@ -8,7 +8,7 @@ jobs:
     runs-on: windows-2022
     defaults:
       run:
-        shell: msys2 {0}
+        shell: msys2 {0}  # Using MSYS2 shell for commands
 
     steps:
       - name: Checkout repository
@@ -18,7 +18,7 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           cache: true
-          msystem: MINGW64
+          msystem: MINGW64  # Set MSYS2 system to MINGW64 for cross-compiling
           install: >-
             diffutils
             git
@@ -33,28 +33,31 @@ jobs:
             mingw-w64-x86_64-pkg-config
             mingw-w64-x86_64-python
             mingw-w64-x86_64-SDL2
-      - name: Configure 
-            sed -z -i "s/qemu_ldflags = \[\]/qemu_ldflags = \['-liconv','-Wl,--allow-multiple-definition'\]/g" -- meson.build
-            
-            echo DBG
-            ./configure --help
-            
-            ./configure \
-                --bindir=xtensa-softmmu \
-                --datadir=share/qemu \
-                --enable-gcrypt \
-                --enable-iconv \
-                --enable-gtk \
-                --enable-pixman \
-                --disable-sdl \
-                --enable-strip \
-                --enable-slirp \
-                --enable-stack-protector \
-                --extra-cflags=-Werror \
-                --prefix=${PWD}/install/qemu \
-                --target-list=-xtensa-softmmu \
-                --with-suffix="" \
-                --without-default-features \
-            || { cat meson-logs/meson-log.txt && false; }
-    
-     
+
+      - name: Configure QEMU
+        run: |
+          # Modify meson build script to allow multiple definitions
+          sed -z -i "s/qemu_ldflags = \[\]/qemu_ldflags = \['-liconv','-Wl,--allow-multiple-definition'\]/g" meson.build
+          
+          # Display configuration options
+          echo "Configuration options:"
+          ./configure --help
+          
+          # Run configure with the desired flags
+          ./configure \
+              --bindir=xtensa-softmmu \
+              --datadir=share/qemu \
+              --enable-gcrypt \
+              --enable-iconv \
+              --enable-gtk \
+              --enable-pixman \
+              --disable-sdl \
+              --enable-strip \
+              --enable-slirp \
+              --enable-stack-protector \
+              --extra-cflags=-Werror \
+              --prefix=${PWD}/install/qemu \
+              --target-list=xtensa-softmmu \
+              --with-suffix="" \
+              --without-default-features \
+          || { cat meson-logs/meson-log.txt && false; }
