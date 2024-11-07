@@ -65,3 +65,22 @@ jobs:
       - name: Build
         run: |
           ninja -C build install
+      - name: Package
+        run: |
+          find $PWD/install/qemu/share/qemu/ -maxdepth 1 -mindepth 1 -not -name 'esp32*.bin' -exec rm -rfv {} \;
+          export DIST_DIR=${PWD}/dist
+          mkdir -p ${DIST_DIR}
+          cd $PWD/install
+          mv qemu/share/qemu qemu/share/qemu-firmware
+          ARCHIVE_NAME=QEMU_ESP32.tar.xz
+          tar -cJvf ${DIST_DIR}/${ARCHIVE_NAME} qemu
+
+      - name: Dist artifacts (${{ matrix.target }} @ ${{ matrix.platform }})
+        uses: actions/upload-artifact@v4
+        with:
+          # TODO split artifacts for tests
+          name: dist-qemu-${{ matrix.target }}-${{ matrix.platform }}
+          path: |
+            install/qemu
+
+
