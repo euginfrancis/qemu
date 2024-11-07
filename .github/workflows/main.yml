@@ -1,0 +1,38 @@
+name: 'build'
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  Vars:
+    runs-on: ubuntu-latest
+    outputs:
+      VERSION: ${{ steps.Vars.outputs.VERSION }}
+      PROJECT_NAME: ${{ steps.Vars.outputs.PROJECT_NAME }}
+      REPOSITORY_URL: ${{ steps.Vars.outputs.REPOSITORY_URL }}
+    steps:
+      - id: Vars
+        run: |
+          echo "ref_type: ${{ github.ref_type }}"
+          echo "ref: ${{ github.ref }}"
+          echo "sha: ${{ github.sha }}"
+          echo ""
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION=${{ github.ref }}
+            VERSION=${VERSION#"refs/tags/"}
+            VERSION=${VERSION//"-"/"_"}   # replace dashes with underscores in the version
+          else
+            VERSION=${{ github.sha }}
+            VERSION=g${VERSION:0:8}
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo $VERSION
+          OWNER=${{ github.repository_owner }}
+          FULLNAME=${{ github.repository }}
+          PROJECT_NAME=${FULLNAME#"$OWNER/"}
+          echo "PROJECT_NAME=$PROJECT_NAME" >> "$GITHUB_OUTPUT"
+          echo $PROJECT_NAME
+          REPOSITORY_URL=${{ github.server_url }}/${{ github.repository }}
+          echo "REPOSITORY_URL=$REPOSITORY_URL" >> "$GITHUB_OUTPUT"
+          echo $REPOSITORY_URL
