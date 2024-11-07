@@ -61,3 +61,7 @@ jobs:
               --with-suffix="" \
               --without-default-features \
           || { cat meson-logs/meson-log.txt && false; }
+
+        -name: Build
+         run: |
+          ninja -C build install
