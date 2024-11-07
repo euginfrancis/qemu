@@ -1,38 +1,60 @@
 name: 'build'
 
-on:
+on: 
   workflow_dispatch:
 
 jobs:
+  build-qemu-windows:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: msys2 {0}
 
-  Vars:
-    runs-on: ubuntu-latest
-    outputs:
-      VERSION: ${{ steps.Vars.outputs.VERSION }}
-      PROJECT_NAME: ${{ steps.Vars.outputs.PROJECT_NAME }}
-      REPOSITORY_URL: ${{ steps.Vars.outputs.REPOSITORY_URL }}
     steps:
-      - id: Vars
-        run: |
-          echo "ref_type: ${{ github.ref_type }}"
-          echo "ref: ${{ github.ref }}"
-          echo "sha: ${{ github.sha }}"
-          echo ""
-          if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            VERSION=${{ github.ref }}
-            VERSION=${VERSION#"refs/tags/"}
-            VERSION=${VERSION//"-"/"_"}   # replace dashes with underscores in the version
-          else
-            VERSION=${{ github.sha }}
-            VERSION=g${VERSION:0:8}
-          fi
-          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
-          echo $VERSION
-          OWNER=${{ github.repository_owner }}
-          FULLNAME=${{ github.repository }}
-          PROJECT_NAME=${FULLNAME#"$OWNER/"}
-          echo "PROJECT_NAME=$PROJECT_NAME" >> "$GITHUB_OUTPUT"
-          echo $PROJECT_NAME
-          REPOSITORY_URL=${{ github.server_url }}/${{ github.repository }}
-          echo "REPOSITORY_URL=$REPOSITORY_URL" >> "$GITHUB_OUTPUT"
-          echo $REPOSITORY_URL
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          cache: true
+          msystem: MINGW64
+          install: >-
+            diffutils
+            git
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-glib2
+            mingw-w64-x86_64-libgcrypt
+            mingw-w64-x86_64-libiconv
+            mingw-w64-x86_64-libslirp
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-gtk3
+            mingw-w64-x86_64-pixman
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-python
+            mingw-w64-x86_64-SDL2
+      - name: Configure 
+            sed -z -i "s/qemu_ldflags = \[\]/qemu_ldflags = \['-liconv','-Wl,--allow-multiple-definition'\]/g" -- meson.build
+            
+            echo DBG
+            ./configure --help
+            
+            ./configure \
+                --bindir=xtensa-softmmu \
+                --datadir=share/qemu \
+                --enable-gcrypt \
+                --enable-iconv \
+                --enable-gtk \
+                --enable-pixman \
+                --disable-sdl \
+                --enable-strip \
+                --enable-slirp \
+                --enable-stack-protector \
+                --extra-cflags=-Werror \
+                --prefix=${PWD}/install/qemu \
+                --target-list=-xtensa-softmmu \
+                --with-suffix="" \
+                --without-default-features \
+            || { cat meson-logs/meson-log.txt && false; }
+    
+     
