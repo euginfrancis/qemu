@@ -60,6 +60,7 @@ jobs:
               --target-list=xtensa-softmmu \
               --with-suffix="" \
               --without-default-features \
+              --static \
           || { cat meson-logs/meson-log.txt && false; }
 
       - name: Build
