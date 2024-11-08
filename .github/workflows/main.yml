@@ -55,7 +55,8 @@ jobs:
               --enable-strip \
               --enable-slirp \
               --enable-stack-protector \
-              --extra-cflags=-Werror \
+              --extra-cflags="-static" \
+              --extra-ldflags="-static" \
               --prefix=${PWD}/install/qemu \
               --target-list=xtensa-softmmu \
               --with-suffix="" \
